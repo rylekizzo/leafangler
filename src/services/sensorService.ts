@@ -10,6 +10,17 @@ export interface Position {
   z: number; // Z position in meters (estimated)
 }
 
+export interface SurfaceNormal {
+  x: number; // X component of normal vector
+  y: number; // Y component of normal vector
+  z: number; // Z component of normal vector
+}
+
+export interface LeafOrientation {
+  zenith: number;  // Angle from vertical (0-90°, 0° = horizontal leaf)
+  azimuth: number; // Compass direction (0-360°, 0° = North)
+}
+
 export interface CalibrationOffsets {
   pitch: number;
   roll: number;
@@ -48,6 +59,75 @@ export class SensorService {
 
   getCalibrationOffsets(): CalibrationOffsets {
     return { ...this.calibrationOffsets };
+  }
+
+  // Calculate surface normal vector from Euler angles
+  calculateSurfaceNormal(angles: Angles): SurfaceNormal {
+    // Convert degrees to radians
+    const pitchRad = (angles.pitch * Math.PI) / 180;
+    const rollRad = (angles.roll * Math.PI) / 180;
+    const yawRad = (angles.yaw * Math.PI) / 180;
+
+    // Calculate rotation matrix components
+    // Using ZYX Euler angle convention (yaw-pitch-roll)
+    const cp = Math.cos(pitchRad);
+    const sp = Math.sin(pitchRad);
+    const cr = Math.cos(rollRad);
+    const sr = Math.sin(rollRad);
+    const cy = Math.cos(yawRad);
+    const sy = Math.sin(yawRad);
+
+    // The normal vector is the Z-axis of the rotated coordinate system
+    // For a leaf lying flat (pitch=0, roll=0), normal points up (0,0,1)
+    const normal: SurfaceNormal = {
+      x: sp * cy + cp * sr * sy,
+      y: sp * sy - cp * sr * cy,
+      z: cp * cr
+    };
+
+    // Normalize the vector
+    const magnitude = Math.sqrt(normal.x ** 2 + normal.y ** 2 + normal.z ** 2);
+    if (magnitude > 0) {
+      normal.x /= magnitude;
+      normal.y /= magnitude;
+      normal.z /= magnitude;
+    }
+
+    return normal;
+  }
+
+  // Calculate leaf zenith and azimuth from surface normal
+  calculateLeafOrientation(normal: SurfaceNormal): LeafOrientation {
+    // Zenith angle: angle from vertical (z-axis)
+    // For leaves: 0° = horizontal (normal pointing up), 90° = vertical
+    const zenith = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
+
+    // Azimuth angle: compass direction of the normal projection on XY plane
+    // 0° = North (+Y), 90° = East (+X), 180° = South (-Y), 270° = West (-X)
+    let azimuth = Math.atan2(normal.x, normal.y) * (180 / Math.PI);
+    
+    // Convert to 0-360° range
+    if (azimuth < 0) {
+      azimuth += 360;
+    }
+
+    return {
+      zenith: Math.round(zenith * 100) / 100,  // Round to 2 decimal places
+      azimuth: Math.round(azimuth * 100) / 100
+    };
+  }
+
+  // Combined method to get all orientation data
+  getOrientationData(): { angles: Angles; normal: SurfaceNormal; orientation: LeafOrientation } {
+    const angles = this.getAngles();
+    const normal = this.calculateSurfaceNormal(angles);
+    const orientation = this.calculateLeafOrientation(normal);
+    
+    return {
+      angles,
+      normal,
+      orientation
+    };
   }
 
   setCalibrationOffsets(offsets: CalibrationOffsets): void {

@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { SensorService, Angles, Position } from './services/sensorService';
+import { SensorService, Angles, Position, SurfaceNormal, LeafOrientation } from './services/sensorService';
 
 interface Recording {
   timestamp: Date;
   angles: Angles;
   position: Position;
+  normal: SurfaceNormal;
+  orientation: LeafOrientation;
   tag: string;
 }
 
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
+  const [orientation, setOrientation] = useState<LeafOrientation>({ zenith: 0, azimuth: 0 });
+  const [normal, setNormal] = useState<SurfaceNormal>({ x: 0, y: 0, z: 1 });
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentTag, setCurrentTag] = useState('');
@@ -25,7 +29,14 @@ function App() {
   useEffect(() => {
     // Start sensor listening immediately
     sensorService.current.startListening();
-    unsubscribeAngles.current = sensorService.current.subscribe(setAngles);
+    unsubscribeAngles.current = sensorService.current.subscribe((newAngles) => {
+      setAngles(newAngles);
+      // Calculate orientation data when angles change
+      const newNormal = sensorService.current.calculateSurfaceNormal(newAngles);
+      const newOrientation = sensorService.current.calculateLeafOrientation(newNormal);
+      setNormal(newNormal);
+      setOrientation(newOrientation);
+    });
     unsubscribePosition.current = sensorService.current.subscribePosition(setPosition);
     
     // Update time every second
@@ -48,6 +59,8 @@ function App() {
       timestamp: new Date(), 
       angles, 
       position,
+      normal,
+      orientation,
       tag: currentTag.trim() || 'Default' 
     }]);
   };
@@ -61,8 +74,8 @@ function App() {
   const handleSave = () => {
     if (recordings.length === 0) return;
     
-    // Create CSV content
-    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Pitch', 'Roll', 'Yaw', 'X', 'Y', 'Z'];
+    // Create CSV content with new columns for zenith, azimuth, and normal vector
+    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'X', 'Y', 'Z'];
     const csvRows = [
       headers.join(','),
       ...recordings.map(r => {
@@ -84,6 +97,11 @@ function App() {
           r.angles.pitch.toFixed(2),
           r.angles.roll.toFixed(2),
           r.angles.yaw.toFixed(2),
+          r.orientation.zenith.toFixed(2),
+          r.orientation.azimuth.toFixed(2),
+          r.normal.x.toFixed(4),
+          r.normal.y.toFixed(4),
+          r.normal.z.toFixed(4),
           r.position.x.toFixed(3),
           r.position.y.toFixed(3),
           r.position.z.toFixed(3)
@@ -177,6 +195,7 @@ function App() {
         <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
+          {/* First row: Time and primary angles */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center mb-4">
             <div>
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Time</div>
@@ -193,6 +212,18 @@ function App() {
             <div>
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Yaw</div>
               <div className="text-lg sm:text-2xl font-mono leading-tight">{angles.yaw.toFixed(2)}°</div>
+            </div>
+          </div>
+          
+          {/* Second row: Leaf orientation */}
+          <div className={`grid grid-cols-2 gap-4 sm:gap-6 text-center pb-4 border-b ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
+            <div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Zenith</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.zenith.toFixed(2)}°</div>
+            </div>
+            <div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Azimuth</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.azimuth.toFixed(2)}°</div>
             </div>
           </div>
           
@@ -229,15 +260,17 @@ function App() {
         <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
-          <div className="h-80 overflow-y-auto">
+          <div className="h-80 overflow-x-auto overflow-y-auto">
             <table className="w-full">
               <thead className={`sticky top-0 ${isDarkMode ? 'bg-dark-800' : 'bg-white'}`}>
                 <tr className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <th className="text-left py-2 px-1">Time</th>
                   <th className="text-left py-2 px-1">Tag</th>
-                  <th className="text-right py-2 px-1">Pitch</th>
-                  <th className="text-right py-2 px-1">Roll</th>
-                  <th className="text-right py-2 px-1">Yaw</th>
+                  <th className="text-right py-2 px-1">Zenith</th>
+                  <th className="text-right py-2 px-1">Azimuth</th>
+                  <th className="text-right py-2 px-1 hidden sm:table-cell">Pitch</th>
+                  <th className="text-right py-2 px-1 hidden sm:table-cell">Roll</th>
+                  <th className="text-right py-2 px-1 hidden sm:table-cell">Yaw</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,13 +282,19 @@ function App() {
                     <td className={`py-2 sm:py-3 px-1 text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {recording.tag}
                     </td>
-                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm text-green-500">
+                      {recording.orientation.zenith.toFixed(2)}°
+                    </td>
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm text-green-500">
+                      {recording.orientation.azimuth.toFixed(2)}°
+                    </td>
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm hidden sm:table-cell">
                       {recording.angles.pitch.toFixed(2)}°
                     </td>
-                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm hidden sm:table-cell">
                       {recording.angles.roll.toFixed(2)}°
                     </td>
-                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm hidden sm:table-cell">
                       {recording.angles.yaw.toFixed(2)}°
                     </td>
                   </tr>
