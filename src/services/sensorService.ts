@@ -5,9 +5,11 @@ export interface Angles {
 }
 
 export interface Position {
-  x: number; // X position in meters (estimated)
-  y: number; // Y position in meters (estimated)
-  z: number; // Z position in meters (estimated)
+  x: number; // X displacement in meters (estimated from accelerometer, prone to drift)
+  y: number; // Y displacement in meters (estimated from accelerometer, prone to drift)
+  z: number; // Z displacement in meters (estimated from accelerometer, prone to drift)
+  // Note: These are relative position changes from device movement, not GPS coordinates
+  // They accumulate error over time due to sensor drift and should not be relied upon for accuracy
 }
 
 export interface SurfaceNormal {

@@ -119,7 +119,7 @@ function App() {
     if (recordings.length === 0) return;
     
     // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
-    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Latitude', 'Longitude', 'Altitude', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'X', 'Y', 'Z'];
+    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
     const csvRows = [
       headers.join(','),
       ...recordings.map(r => {
