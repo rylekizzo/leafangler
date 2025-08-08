@@ -210,19 +210,17 @@ function App() {
             <button
               onClick={async () => {
                 try {
-                  // Start fade out animation first
+                  // Request permissions first
+                  await startSensors();
+                  // Only animate if permissions were granted successfully
                   setIsHiding(true);
-                  // Start sensors after a brief delay to show animation starting
-                  setTimeout(async () => {
-                    await startSensors();
-                    // Wait for animation to complete before hiding completely
-                    setTimeout(() => {
-                      setNeedsPermission(false);
-                      setIsHiding(false);
-                    }, 400);
-                  }, 100);
+                  // Wait for animation to complete before hiding completely
+                  setTimeout(() => {
+                    setNeedsPermission(false);
+                    setIsHiding(false);
+                  }, 500);
                 } catch (error) {
-                  setIsHiding(false);
+                  // Don't animate if permissions were denied
                   alert('Permission denied. Please reload the page and try again.');
                 }
               }}
