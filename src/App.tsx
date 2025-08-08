@@ -205,6 +205,66 @@ function App() {
     });
   };
 
+  // Show fullscreen permission screen if needed
+  if ((needsPermission || isHiding) && !permissionsGranted) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
+        isDarkMode 
+          ? 'bg-dark-900 text-white' 
+          : 'bg-gray-50 text-gray-900'
+      }`}>
+        <div 
+          className={`max-w-md w-full rounded-2xl p-8 text-center transition-all duration-500 ease-out ${
+            isDarkMode ? 'bg-dark-800' : 'bg-white shadow-xl'
+          } ${
+            isHiding 
+              ? 'opacity-0 scale-95 transform -translate-y-4' 
+              : 'opacity-100 scale-100 transform translate-y-0'
+          }`}
+        >
+          <img 
+            src={`${process.env.PUBLIC_URL}/logo.png`}
+            alt="LeafAngler" 
+            className="w-48 h-48 mx-auto mb-6"
+            onError={(e) => {
+              console.error('Logo failed to load');
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <h1 className={`mb-2 text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            LeafAngler
+          </h1>
+          <p className={`mb-8 text-base ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            To measure leaf angles, we need access to your device's motion sensors and GPS location.
+          </p>
+          <button
+            onClick={async () => {
+              try {
+                // Request permissions first
+                await startSensors();
+                // Only animate if permissions were granted successfully
+                setIsHiding(true);
+                // Wait for animation to complete before transitioning
+                setTimeout(() => {
+                  setNeedsPermission(false);
+                  setIsHiding(false);
+                }, 500);
+              } catch (error) {
+                // Don't animate if permissions were denied
+                console.error('Permission error:', error);
+                alert('Permission denied. Please reload the page and try again.');
+              }
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-16 py-5 rounded-2xl text-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+          >
+            Enable Sensors & GPS
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Main app after permissions granted
   return (
     <div className={`min-h-screen p-3 sm:p-4 transition-colors ${
       isDarkMode 
@@ -213,57 +273,6 @@ function App() {
     }`}>
       <div className="max-w-4xl mx-auto">
         
-        {/* Permission Request Button for iOS */}
-        {(needsPermission || isHiding) && !permissionsGranted && (
-          <div 
-            className={`rounded-2xl p-6 mb-4 text-center transition-all duration-500 ease-out ${
-              isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
-            } ${
-              isHiding 
-                ? 'opacity-0 scale-95 transform -translate-y-4 pointer-events-none' 
-                : 'opacity-100 scale-100 transform translate-y-0'
-            }`}
-          >
-            <img 
-              src={`${process.env.PUBLIC_URL}/logo.png`}
-              alt="LeafAngler" 
-              className="w-40 h-40 mx-auto mb-4"
-              onError={(e) => {
-                console.error('Logo failed to load');
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            <p className={`mb-4 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-              LeafAngler
-            </p>
-            <p className={`mb-6 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              To measure leaf angles, we need access to your device's motion sensors and GPS location.
-            </p>
-            <button
-              onClick={async () => {
-                try {
-                  // Request permissions first
-                  await startSensors();
-                  // Only animate if permissions were granted successfully
-                  setIsHiding(true);
-                  // Wait for animation to complete before hiding completely
-                  setTimeout(() => {
-                    setNeedsPermission(false);
-                    setIsHiding(false);
-                  }, 500);
-                } catch (error) {
-                  // Don't animate if permissions were denied
-                  console.error('Permission error:', error);
-                  alert('Permission denied. Please reload the page and try again.');
-                }
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-2xl text-lg font-semibold transition-colors shadow-lg"
-            >
-              Enable Sensors & GPS
-            </button>
-          </div>
-        )}
-
         {/* Settings Panel - Floating Window */}
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
