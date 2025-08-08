@@ -185,16 +185,15 @@ function App() {
       <div className="max-w-4xl mx-auto">
         
         {/* Permission Request Button for iOS */}
-        {needsPermission && !permissionsGranted && (
+        {(needsPermission || isHiding) && !permissionsGranted && (
           <div 
-            className={`rounded-2xl p-6 mb-4 text-center transition-all duration-500 ease-out transform ${
+            className={`rounded-2xl p-6 mb-4 text-center transition-all duration-500 ease-out ${
               isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
             } ${
-              isHiding ? 'opacity-0 scale-95 -translate-y-4' : 'opacity-100 scale-100 translate-y-0'
+              isHiding 
+                ? 'opacity-0 scale-95 transform -translate-y-4 pointer-events-none' 
+                : 'opacity-100 scale-100 transform translate-y-0'
             }`}
-            style={{
-              transitionProperty: 'opacity, transform',
-            }}
           >
             <img 
               src="/logo.png" 
@@ -210,15 +209,19 @@ function App() {
             <button
               onClick={async () => {
                 try {
-                  await startSensors();
-                  // Start fade out animation
+                  // Start fade out animation first
                   setIsHiding(true);
-                  // Wait for animation to complete before hiding
-                  setTimeout(() => {
-                    setNeedsPermission(false);
-                    setIsHiding(false);
-                  }, 500);
+                  // Start sensors after a brief delay to show animation starting
+                  setTimeout(async () => {
+                    await startSensors();
+                    // Wait for animation to complete before hiding completely
+                    setTimeout(() => {
+                      setNeedsPermission(false);
+                      setIsHiding(false);
+                    }, 400);
+                  }, 100);
                 } catch (error) {
+                  setIsHiding(false);
                   alert('Permission denied. Please reload the page and try again.');
                 }
               }}
