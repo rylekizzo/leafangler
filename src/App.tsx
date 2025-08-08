@@ -159,13 +159,41 @@ function App() {
     ];
     
     const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    
+    // Safari-compatible download method
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Check if we're on Safari/iOS
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    
+    if (isIOS || isSafari) {
+      // For Safari/iOS, use a different approach
+      const reader = new FileReader();
+      reader.onload = function() {
+        const a = document.createElement('a');
+        a.href = reader.result as string;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+      reader.readAsDataURL(blob);
+    } else {
+      // Standard approach for other browsers
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Clean up with a delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -197,9 +225,13 @@ function App() {
             }`}
           >
             <img 
-              src="/logo.png" 
+              src={`${process.env.PUBLIC_URL}/logo.png`}
               alt="LeafAngler" 
               className="w-40 h-40 mx-auto mb-4"
+              onError={(e) => {
+                console.error('Logo failed to load');
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
             <p className={`mb-4 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
               LeafAngler
