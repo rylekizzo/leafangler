@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/leafangler/static/css/main.1f24ae96.css",
+    "main.js": "/leafangler/static/js/main.31edcdb7.js",
+    "static/js/453.e335af40.chunk.js": "/leafangler/static/js/453.e335af40.chunk.js",
+    "index.html": "/leafangler/index.html",
+    "main.1f24ae96.css.map": "/leafangler/static/css/main.1f24ae96.css.map",
+    "main.31edcdb7.js.map": "/leafangler/static/js/main.31edcdb7.js.map",
+    "453.e335af40.chunk.js.map": "/leafangler/static/js/453.e335af40.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.1f24ae96.css",
+    "static/js/main.31edcdb7.js"
+  ]
+}
