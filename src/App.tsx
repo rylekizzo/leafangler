@@ -111,7 +111,7 @@ function App() {
   };
 
   return (
-    <div className={`min-h-screen p-4 transition-colors ${
+    <div className={`min-h-screen p-3 sm:p-4 transition-colors ${
       isDarkMode 
         ? 'bg-dark-900 text-white' 
         : 'bg-gray-50 text-gray-900'
@@ -137,8 +137,8 @@ function App() {
 
         {/* Settings Panel - Floating Window */}
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className={`relative w-80 max-w-sm mx-4 rounded-2xl p-6 transition-colors ${
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className={`relative w-full max-w-sm rounded-2xl p-6 transition-colors ${
               isDarkMode ? 'bg-dark-800' : 'bg-white shadow-xl'
             }`}>
               {/* Close button */}
@@ -191,32 +191,32 @@ function App() {
         )}
         
         {/* Current Values Card */}
-        <div className={`rounded-2xl p-6 mb-4 transition-colors ${
+        <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
-          <div className="grid grid-cols-4 gap-6 text-center mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center mb-4">
             <div>
-              <div className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Time</div>
-              <div className="text-2xl font-mono">{formatTime(currentTime)}</div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Time</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight">{formatTime(currentTime)}</div>
             </div>
             <div>
-              <div className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Pitch</div>
-              <div className="text-2xl font-mono">{angles.pitch.toFixed(2)}°</div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Pitch</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight">{angles.pitch.toFixed(2)}°</div>
             </div>
             <div>
-              <div className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Roll</div>
-              <div className="text-2xl font-mono">{angles.roll.toFixed(2)}°</div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Roll</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight">{angles.roll.toFixed(2)}°</div>
             </div>
             <div>
-              <div className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Yaw</div>
-              <div className="text-2xl font-mono">{angles.yaw.toFixed(2)}°</div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Yaw</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight">{angles.yaw.toFixed(2)}°</div>
             </div>
           </div>
           
           {/* Tag Input */}
           <div className={`border-t pt-4 ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <label className={`text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Tag:</label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <label className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Tag:</label>
               <input
                 type="text"
                 value={currentTag}
@@ -233,36 +233,36 @@ function App() {
         </div>
 
         {/* Data Table Card */}
-        <div className={`rounded-2xl p-6 mb-4 transition-colors ${
+        <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
           <div className="h-80 overflow-y-auto">
             <table className="w-full">
               <thead className={`sticky top-0 ${isDarkMode ? 'bg-dark-800' : 'bg-white'}`}>
-                <tr className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <th className="text-left py-2">Time</th>
-                  <th className="text-left py-2">Tag</th>
-                  <th className="text-right py-2">Pitch</th>
-                  <th className="text-right py-2">Roll</th>
-                  <th className="text-right py-2">Yaw</th>
+                <tr className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <th className="text-left py-2 px-1">Time</th>
+                  <th className="text-left py-2 px-1">Tag</th>
+                  <th className="text-right py-2 px-1">Pitch</th>
+                  <th className="text-right py-2 px-1">Roll</th>
+                  <th className="text-right py-2 px-1">Yaw</th>
                 </tr>
               </thead>
               <tbody>
                 {recordings.map((recording, index) => (
                   <tr key={index} className={`border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
-                    <td className="py-3 font-mono text-sm">
+                    <td className="py-2 sm:py-3 px-1 font-mono text-xs sm:text-sm">
                       {formatTime(recording.timestamp)}
                     </td>
-                    <td className={`py-3 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <td className={`py-2 sm:py-3 px-1 text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {recording.tag}
                     </td>
-                    <td className="py-3 text-right font-mono">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
                       {recording.angles.pitch.toFixed(2)}°
                     </td>
-                    <td className="py-3 text-right font-mono">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
                       {recording.angles.roll.toFixed(2)}°
                     </td>
-                    <td className="py-3 text-right font-mono">
+                    <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm">
                       {recording.angles.yaw.toFixed(2)}°
                     </td>
                   </tr>
@@ -271,7 +271,7 @@ function App() {
             </table>
             
             {recordings.length === 0 && (
-              <div className={`flex items-center justify-center h-60 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              <div className={`flex items-center justify-center h-60 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 No recordings yet
               </div>
             )}
@@ -279,37 +279,39 @@ function App() {
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <button
             onClick={handleRecord}
-            className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-2xl text-lg font-semibold transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-white px-8 sm:px-12 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
           >
             Record
           </button>
           
-          <button
-            onClick={handleUndo}
-            disabled={recordings.length === 0}
-            className={`px-8 py-4 rounded-2xl text-lg transition-colors ${
-              isDarkMode
-                ? 'bg-dark-700 hover:bg-dark-600 disabled:bg-dark-700 disabled:opacity-50 text-white'
-                : 'bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:opacity-50 text-gray-700'
-            }`}
-          >
-            Undo
-          </button>
-          
-          <button
-            onClick={handleSave}
-            disabled={recordings.length === 0}
-            className={`px-8 py-4 rounded-2xl text-lg transition-colors ${
-              isDarkMode
-                ? 'bg-green-600 hover:bg-green-700 disabled:bg-dark-700 disabled:opacity-50 text-white'
-                : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:opacity-50 text-white disabled:text-gray-400'
-            }`}
-          >
-            Save
-          </button>
+          <div className="flex gap-3 sm:gap-4">
+            <button
+              onClick={handleUndo}
+              disabled={recordings.length === 0}
+              className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
+                isDarkMode
+                  ? 'bg-dark-700 hover:bg-dark-600 disabled:bg-dark-700 disabled:opacity-50 text-white'
+                  : 'bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:opacity-50 text-gray-700'
+              }`}
+            >
+              Undo
+            </button>
+            
+            <button
+              onClick={handleSave}
+              disabled={recordings.length === 0}
+              className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
+                isDarkMode
+                  ? 'bg-green-600 hover:bg-green-700 disabled:bg-dark-700 disabled:opacity-50 text-white'
+                  : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:opacity-50 text-white disabled:text-gray-400'
+              }`}
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>
