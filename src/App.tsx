@@ -219,7 +219,7 @@ function App() {
         <div className="flex justify-center mb-4">
           <button
             onClick={handleRecord}
-            className="bg-red-600 hover:bg-red-700 text-white px-8 sm:px-12 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-white px-16 sm:px-24 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
           >
             Record
           </button>
