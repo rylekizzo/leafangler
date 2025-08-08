@@ -5,14 +5,14 @@ import { SensorService, Angles } from './services/sensorService';
 interface Recording {
   timestamp: Date;
   angles: Angles;
-  group: string;
+  tag: string;
 }
 
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentGroup, setCurrentGroup] = useState('');
+  const [currentTag, setCurrentTag] = useState('');
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -38,7 +38,7 @@ function App() {
     setRecordings([...recordings, { 
       timestamp: new Date(), 
       angles, 
-      group: currentGroup.trim() || 'Default' 
+      tag: currentTag.trim() || 'Default' 
     }]);
   };
 
@@ -49,19 +49,27 @@ function App() {
   };
 
   const handleSave = () => {
-    const data = recordings.map(r => ({
-      timestamp: r.timestamp.toISOString(),
-      group: r.group,
-      pitch: r.angles.pitch.toFixed(2),
-      roll: r.angles.roll.toFixed(2),
-      yaw: r.angles.yaw.toFixed(2)
-    }));
+    if (recordings.length === 0) return;
     
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    // Create CSV content
+    const headers = ['Timestamp', 'Tag', 'Pitch', 'Roll', 'Yaw'];
+    const csvRows = [
+      headers.join(','),
+      ...recordings.map(r => [
+        r.timestamp.toISOString(),
+        r.tag,
+        r.angles.pitch.toFixed(2),
+        r.angles.roll.toFixed(2),
+        r.angles.yaw.toFixed(2)
+      ].join(','))
+    ];
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `leaf-angles-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -100,15 +108,15 @@ function App() {
             </div>
           </div>
           
-          {/* Group Input */}
+          {/* Tag Input */}
           <div className="border-t border-dark-700 pt-4">
             <div className="flex items-center gap-3">
-              <label className="text-gray-400 text-sm whitespace-nowrap">Group:</label>
+              <label className="text-gray-400 text-sm whitespace-nowrap">Tag:</label>
               <input
                 type="text"
-                value={currentGroup}
-                onChange={(e) => setCurrentGroup(e.target.value)}
-                placeholder="Enter group name (optional)"
+                value={currentTag}
+                onChange={(e) => setCurrentTag(e.target.value)}
+                placeholder="Enter tag name (optional)"
                 className="flex-1 bg-dark-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -122,7 +130,7 @@ function App() {
               <thead className="sticky top-0 bg-dark-800">
                 <tr className="text-gray-400 text-sm">
                   <th className="text-left py-2">Time</th>
-                  <th className="text-left py-2">Group</th>
+                  <th className="text-left py-2">Tag</th>
                   <th className="text-right py-2">Pitch</th>
                   <th className="text-right py-2">Roll</th>
                   <th className="text-right py-2">Yaw</th>
@@ -135,7 +143,7 @@ function App() {
                       {formatTime(recording.timestamp)}
                     </td>
                     <td className="py-3 text-sm text-gray-300">
-                      {recording.group}
+                      {recording.tag}
                     </td>
                     <td className="py-3 text-right font-mono">
                       {recording.angles.pitch.toFixed(2)}°
