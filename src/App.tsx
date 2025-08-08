@@ -17,10 +17,34 @@ function App() {
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
   const [orientation, setOrientation] = useState<LeafOrientation>({ zenith: 0, azimuth: 0 });
   const [normal, setNormal] = useState<SurfaceNormal>({ x: 0, y: 0, z: 1 });
-  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [recordings, setRecordings] = useState<Recording[]>(() => {
+    // Load recordings from localStorage on initial mount
+    const saved = localStorage.getItem('leafangler-recordings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert timestamp strings back to Date objects
+        return parsed.map((r: any) => ({
+          ...r,
+          timestamp: new Date(r.timestamp)
+        }));
+      } catch (e) {
+        console.error('Failed to load saved recordings:', e);
+        return [];
+      }
+    }
+    return [];
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentTag, setCurrentTag] = useState('');
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [currentTag, setCurrentTag] = useState(() => {
+    // Load last used tag from localStorage
+    return localStorage.getItem('leafangler-last-tag') || '';
+  });
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Load theme preference from localStorage
+    const saved = localStorage.getItem('leafangler-dark-mode');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
@@ -67,6 +91,21 @@ function App() {
       clearInterval(gpsInterval);
     };
   };
+
+  // Save recordings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('leafangler-recordings', JSON.stringify(recordings));
+  }, [recordings]);
+  
+  // Save tag preference to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('leafangler-last-tag', currentTag);
+  }, [currentTag]);
+  
+  // Save theme preference to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('leafangler-dark-mode', isDarkMode.toString());
+  }, [isDarkMode]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -358,7 +397,7 @@ function App() {
                 Settings
               </h3>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-6">
                 <span className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Mode
                 </span>
@@ -381,6 +420,26 @@ function App() {
                       </svg>
                     )}
                   </div>
+                </button>
+              </div>
+              
+              {/* Clear Data Button */}
+              <div className={`pt-6 border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => {
+                    if (window.confirm('This will clear all recorded measurements. Are you sure?')) {
+                      setRecordings([]);
+                      localStorage.removeItem('leafangler-recordings');
+                    }
+                  }}
+                  disabled={recordings.length === 0}
+                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isDarkMode 
+                      ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400 disabled:opacity-50 disabled:cursor-not-allowed' 
+                      : 'bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  Clear All Recordings ({recordings.length})
                 </button>
               </div>
             </div>
