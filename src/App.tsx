@@ -2,10 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { SensorService, Angles } from './services/sensorService';
 
+interface Recording {
+  timestamp: Date;
+  angles: Angles;
+  group: string;
+}
+
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
-  const [recordings, setRecordings] = useState<Array<{ timestamp: Date; angles: Angles }>>([]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentGroup, setCurrentGroup] = useState('');
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -28,7 +35,11 @@ function App() {
   }, []);
 
   const handleRecord = () => {
-    setRecordings([...recordings, { timestamp: new Date(), angles }]);
+    setRecordings([...recordings, { 
+      timestamp: new Date(), 
+      angles, 
+      group: currentGroup.trim() || 'Default' 
+    }]);
   };
 
   const handleUndo = () => {
@@ -40,6 +51,7 @@ function App() {
   const handleSave = () => {
     const data = recordings.map(r => ({
       timestamp: r.timestamp.toISOString(),
+      group: r.group,
       pitch: r.angles.pitch.toFixed(2),
       roll: r.angles.roll.toFixed(2),
       yaw: r.angles.yaw.toFixed(2)
@@ -69,7 +81,7 @@ function App() {
         
         {/* Current Values Card */}
         <div className="bg-dark-800 rounded-2xl p-6 mb-4">
-          <div className="grid grid-cols-4 gap-6 text-center">
+          <div className="grid grid-cols-4 gap-6 text-center mb-4">
             <div>
               <div className="text-gray-400 text-sm mb-1">Time</div>
               <div className="text-2xl font-mono">{formatTime(currentTime)}</div>
@@ -87,6 +99,20 @@ function App() {
               <div className="text-2xl font-mono">{angles.yaw.toFixed(2)}°</div>
             </div>
           </div>
+          
+          {/* Group Input */}
+          <div className="border-t border-dark-700 pt-4">
+            <div className="flex items-center gap-3">
+              <label className="text-gray-400 text-sm whitespace-nowrap">Group:</label>
+              <input
+                type="text"
+                value={currentGroup}
+                onChange={(e) => setCurrentGroup(e.target.value)}
+                placeholder="Enter group name (optional)"
+                className="flex-1 bg-dark-700 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Data Table Card */}
@@ -96,6 +122,7 @@ function App() {
               <thead className="sticky top-0 bg-dark-800">
                 <tr className="text-gray-400 text-sm">
                   <th className="text-left py-2">Time</th>
+                  <th className="text-left py-2">Group</th>
                   <th className="text-right py-2">Pitch</th>
                   <th className="text-right py-2">Roll</th>
                   <th className="text-right py-2">Yaw</th>
@@ -106,6 +133,9 @@ function App() {
                   <tr key={index} className="border-t border-dark-700">
                     <td className="py-3 font-mono text-sm">
                       {formatTime(recording.timestamp)}
+                    </td>
+                    <td className="py-3 text-sm text-gray-300">
+                      {recording.group}
                     </td>
                     <td className="py-3 text-right font-mono">
                       {recording.angles.pitch.toFixed(2)}°
