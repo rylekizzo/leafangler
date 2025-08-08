@@ -294,7 +294,7 @@ function App() {
                 alert('Permission denied. Please reload the page and try again.');
               }
             }}
-            className="relative px-10 py-3.5 rounded-full text-lg font-semibold transition-all transform active:scale-95 flex items-center gap-3"
+            className="relative px-10 py-3.5 rounded-full text-lg font-semibold transition-all transform active:scale-95 flex items-center justify-center gap-3 mx-auto"
             style={{
               background: '#1a5e3a',
               boxShadow: `
@@ -316,33 +316,16 @@ function App() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            {/* Leaf icon */}
+            {/* Three stars icon */}
             <svg 
               className="w-5 h-5" 
               viewBox="0 0 24 24" 
-              fill="none" 
+              fill="currentColor" 
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path 
-                d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.19 0 2.34-.21 3.41-.6.3-.11.49-.4.49-.72 0-.43-.35-.78-.78-.78-.17 0-.33.06-.46.14-.9.49-1.93.75-2.95.75-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7c0 .89-.17 1.75-.48 2.54" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round"
-                opacity="0.4"
-              />
-              <path 
-                d="M17 7c0 5-5 9-5 9s5-4 5-9z" 
-                fill="currentColor"
-                opacity="0.9"
-              />
-              <path 
-                d="M12 3v13M9 7l3 3 3-3" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                opacity="0.6"
-              />
+              <path d="M5 9.5L6.122 11.4L8.5 11.65L6.55 13.3L7.15 15.5L5 14.25L2.85 15.5L3.45 13.3L1.5 11.65L3.878 11.4L5 9.5Z" opacity="0.8"/>
+              <path d="M12 6L13.545 9.13L17 9.635L14.25 12.055L15.09 15.5L12 13.77L8.91 15.5L9.75 12.055L7 9.635L10.455 9.13L12 6Z"/>
+              <path d="M19 9.5L20.122 11.4L22.5 11.65L20.55 13.3L21.15 15.5L19 14.25L16.85 15.5L17.45 13.3L15.5 11.65L17.878 11.4L19 9.5Z" opacity="0.8"/>
             </svg>
             Start Measuring
           </button>
