@@ -294,68 +294,57 @@ function App() {
                 alert('Permission denied. Please reload the page and try again.');
               }
             }}
-            className="relative px-24 py-6 rounded-full text-2xl font-bold transition-all transform active:scale-95"
+            className="relative px-10 py-3.5 rounded-full text-lg font-semibold transition-all transform active:scale-95 flex items-center gap-3"
             style={{
-              background: `linear-gradient(180deg, 
-                #4ade80 0%, 
-                #34c759 35%, 
-                #30a850 65%, 
-                #2a9447 100%)`,
+              background: '#1a5e3a',
               boxShadow: `
-                0 2px 4px rgba(0, 0, 0, 0.1),
-                0 8px 16px rgba(0, 0, 0, 0.15),
-                0 20px 32px rgba(52, 199, 89, 0.25),
-                0 0 0 1px rgba(0, 0, 0, 0.08),
-                inset 0 2px 4px rgba(255, 255, 255, 0.5),
-                inset 0 -4px 8px rgba(0, 0, 0, 0.2),
-                inset 0 -1px 2px rgba(0, 0, 0, 0.3)
+                0 1px 2px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1)
               `,
               color: 'white',
-              textShadow: `
-                0 -1px 0 rgba(0, 0, 0, 0.3),
-                0 1px 2px rgba(0, 0, 0, 0.2)
-              `,
-              border: '1px solid rgba(0, 0, 0, 0.1)',
-              letterSpacing: '0.5px',
-              transformStyle: 'preserve-3d',
-              perspective: '1000px'
+              border: '2px solid #2a7c4f',
+              letterSpacing: '0.3px'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = `linear-gradient(180deg, 
-                #5ee88c 0%, 
-                #3dd760 35%, 
-                #34b855 65%, 
-                #2ea04d 100%)`;
-              e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-              e.currentTarget.style.boxShadow = `
-                0 4px 8px rgba(0, 0, 0, 0.12),
-                0 12px 24px rgba(0, 0, 0, 0.18),
-                0 24px 40px rgba(52, 199, 89, 0.3),
-                0 0 0 1px rgba(0, 0, 0, 0.1),
-                inset 0 2px 4px rgba(255, 255, 255, 0.6),
-                inset 0 -4px 8px rgba(0, 0, 0, 0.15),
-                inset 0 -1px 2px rgba(0, 0, 0, 0.25)
-              `;
+              e.currentTarget.style.background = '#1f6b42';
+              e.currentTarget.style.borderColor = '#34a065';
+              e.currentTarget.style.transform = 'scale(1.02)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = `linear-gradient(180deg, 
-                #4ade80 0%, 
-                #34c759 35%, 
-                #30a850 65%, 
-                #2a9447 100%)`;
-              e.currentTarget.style.transform = 'translateY(0) scale(1)';
-              e.currentTarget.style.boxShadow = `
-                0 2px 4px rgba(0, 0, 0, 0.1),
-                0 8px 16px rgba(0, 0, 0, 0.15),
-                0 20px 32px rgba(52, 199, 89, 0.25),
-                0 0 0 1px rgba(0, 0, 0, 0.08),
-                inset 0 2px 4px rgba(255, 255, 255, 0.5),
-                inset 0 -4px 8px rgba(0, 0, 0, 0.2),
-                inset 0 -1px 2px rgba(0, 0, 0, 0.3)
-              `;
+              e.currentTarget.style.background = '#1a5e3a';
+              e.currentTarget.style.borderColor = '#2a7c4f';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            Enable
+            {/* Leaf icon */}
+            <svg 
+              className="w-5 h-5" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path 
+                d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.19 0 2.34-.21 3.41-.6.3-.11.49-.4.49-.72 0-.43-.35-.78-.78-.78-.17 0-.33.06-.46.14-.9.49-1.93.75-2.95.75-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7c0 .89-.17 1.75-.48 2.54" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round"
+                opacity="0.4"
+              />
+              <path 
+                d="M17 7c0 5-5 9-5 9s5-4 5-9z" 
+                fill="currentColor"
+                opacity="0.9"
+              />
+              <path 
+                d="M12 3v13M9 7l3 3 3-3" 
+                stroke="currentColor" 
+                strokeWidth="1.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                opacity="0.6"
+              />
+            </svg>
+            Start Measuring
           </button>
         </div>
       </div>
