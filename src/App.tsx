@@ -120,10 +120,10 @@ function App() {
     if (recordings.length === 0) return;
     
     // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
-    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+    const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
     const csvRows = [
       headers.join(','),
-      ...recordings.map(r => {
+      ...recordings.map((r, index) => {
         // Format timestamp as YYYY-MM-DD HH:MM:SS for Excel/Python compatibility
         const year = r.timestamp.getFullYear();
         const month = String(r.timestamp.getMonth() + 1).padStart(2, '0');
@@ -134,6 +134,7 @@ function App() {
         const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         
         return [
+          index + 1, // Observation number starting from 1
           formattedTimestamp,
           r.timestamp.getFullYear(),
           r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
@@ -370,6 +371,7 @@ function App() {
             <table className="w-full">
               <thead className={`sticky top-0 ${isDarkMode ? 'bg-dark-800' : 'bg-white'}`}>
                 <tr className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <th className="text-center py-2 px-1">Obs</th>
                   <th className="text-left py-2 px-1">Time</th>
                   <th className="text-left py-2 px-1">Tag</th>
                   <th className="text-right py-2 px-1">Zenith</th>
@@ -382,6 +384,9 @@ function App() {
               <tbody>
                 {recordings.map((recording, index) => (
                   <tr key={index} className={`border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
+                    <td className="py-2 sm:py-3 px-1 text-center font-mono text-xs sm:text-sm font-semibold">
+                      {index + 1}
+                    </td>
                     <td className="py-2 sm:py-3 px-1 font-mono text-xs sm:text-sm">
                       {formatTime(recording.timestamp)}
                     </td>
