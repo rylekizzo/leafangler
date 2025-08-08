@@ -255,40 +255,64 @@ function App() {
                 alert('Permission denied. Please reload the page and try again.');
               }
             }}
-            className="relative px-20 py-5 rounded-full text-xl font-semibold transition-all transform active:scale-95"
+            className="relative px-24 py-6 rounded-full text-2xl font-bold transition-all transform active:scale-95"
             style={{
-              background: 'linear-gradient(180deg, #34c759 0%, #30a850 100%)',
+              background: `linear-gradient(180deg, 
+                #4ade80 0%, 
+                #34c759 35%, 
+                #30a850 65%, 
+                #2a9447 100%)`,
               boxShadow: `
-                0 1px 2px rgba(0, 0, 0, 0.04),
-                0 4px 8px rgba(0, 0, 0, 0.08),
-                0 12px 20px rgba(52, 199, 89, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+                0 2px 4px rgba(0, 0, 0, 0.1),
+                0 8px 16px rgba(0, 0, 0, 0.15),
+                0 20px 32px rgba(52, 199, 89, 0.25),
+                0 0 0 1px rgba(0, 0, 0, 0.08),
+                inset 0 2px 4px rgba(255, 255, 255, 0.5),
+                inset 0 -4px 8px rgba(0, 0, 0, 0.2),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.3)
               `,
               color: 'white',
-              textShadow: '0 -1px 0 rgba(0, 0, 0, 0.15)',
-              border: '0.5px solid rgba(0, 0, 0, 0.05)'
+              textShadow: `
+                0 -1px 0 rgba(0, 0, 0, 0.3),
+                0 1px 2px rgba(0, 0, 0, 0.2)
+              `,
+              border: '1px solid rgba(0, 0, 0, 0.1)',
+              letterSpacing: '0.5px',
+              transformStyle: 'preserve-3d',
+              perspective: '1000px'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(180deg, #3dd760 0%, #34b855 100%)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.background = `linear-gradient(180deg, 
+                #5ee88c 0%, 
+                #3dd760 35%, 
+                #34b855 65%, 
+                #2ea04d 100%)`;
+              e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
               e.currentTarget.style.boxShadow = `
-                0 1px 2px rgba(0, 0, 0, 0.04),
-                0 6px 12px rgba(0, 0, 0, 0.1),
-                0 16px 24px rgba(52, 199, 89, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.25),
-                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+                0 4px 8px rgba(0, 0, 0, 0.12),
+                0 12px 24px rgba(0, 0, 0, 0.18),
+                0 24px 40px rgba(52, 199, 89, 0.3),
+                0 0 0 1px rgba(0, 0, 0, 0.1),
+                inset 0 2px 4px rgba(255, 255, 255, 0.6),
+                inset 0 -4px 8px rgba(0, 0, 0, 0.15),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.25)
               `;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(180deg, #34c759 0%, #30a850 100%)';
-              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.background = `linear-gradient(180deg, 
+                #4ade80 0%, 
+                #34c759 35%, 
+                #30a850 65%, 
+                #2a9447 100%)`;
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
               e.currentTarget.style.boxShadow = `
-                0 1px 2px rgba(0, 0, 0, 0.04),
-                0 4px 8px rgba(0, 0, 0, 0.08),
-                0 12px 20px rgba(52, 199, 89, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+                0 2px 4px rgba(0, 0, 0, 0.1),
+                0 8px 16px rgba(0, 0, 0, 0.15),
+                0 20px 32px rgba(52, 199, 89, 0.25),
+                0 0 0 1px rgba(0, 0, 0, 0.08),
+                inset 0 2px 4px rgba(255, 255, 255, 0.5),
+                inset 0 -4px 8px rgba(0, 0, 0, 0.2),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.3)
               `;
             }}
           >
