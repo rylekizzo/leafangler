@@ -119,7 +119,7 @@ function App() {
     if (recordings.length === 0) return;
     
     // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
-    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
     const csvRows = [
       headers.join(','),
       ...recordings.map(r => {
@@ -138,14 +138,14 @@ function App() {
           r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
           r.timestamp.getDate(),
           r.tag,
+          r.orientation.zenith.toFixed(2),
+          r.orientation.azimuth.toFixed(2),
           r.gps?.latitude?.toFixed(6) || '',
           r.gps?.longitude?.toFixed(6) || '',
           r.gps?.altitude?.toFixed(2) || '',
           r.angles.pitch.toFixed(2),
           r.angles.roll.toFixed(2),
           r.angles.yaw.toFixed(2),
-          r.orientation.zenith.toFixed(2),
-          r.orientation.azimuth.toFixed(2),
           r.normal.x.toFixed(4),
           r.normal.y.toFixed(4),
           r.normal.z.toFixed(4),
