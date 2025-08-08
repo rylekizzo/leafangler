@@ -23,6 +23,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [needsPermission, setNeedsPermission] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
   
   const sensorService = useRef<SensorService>(new SensorService());
@@ -69,12 +70,26 @@ function App() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    // Try to start automatically (works on Android and desktop)
-    startSensors().then(cleanupFn => {
-      cleanup = cleanupFn;
-    }).catch(error => {
-      console.log('Auto-start failed, user needs to grant permissions:', error);
-    });
+    // Check if we need permission (iOS 13+)
+    const checkPermission = async () => {
+      // Check for iOS devices
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function' || isIOS) {
+        // This is iOS - need user interaction to request permission
+        setNeedsPermission(true);
+        console.log('iOS device detected - permission button required');
+      } else {
+        // Not iOS - try to start automatically
+        try {
+          cleanup = await startSensors();
+        } catch (error) {
+          console.log('Auto-start failed:', error);
+        }
+      }
+    };
+    
+    checkPermission();
     
     return () => {
       if (cleanup) cleanup();
@@ -169,19 +184,26 @@ function App() {
       <div className="max-w-4xl mx-auto">
         
         {/* Permission Request Button for iOS */}
-        {!permissionsGranted && typeof (DeviceOrientationEvent as any).requestPermission === 'function' && (
+        {needsPermission && !permissionsGranted && (
           <div className={`rounded-2xl p-4 mb-4 text-center transition-colors ${
             isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
           }`}>
-            <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              To use the sensors, please grant permissions:
+            <p className={`mb-4 text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              📱 iPhone/iPad Detected
+            </p>
+            <p className={`mb-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              To measure leaf angles, we need access to your device's motion sensors.
             </p>
             <button
               onClick={async () => {
-                const cleanup = await startSensors();
-                // Store cleanup function if needed
+                try {
+                  await startSensors();
+                  setNeedsPermission(false);
+                } catch (error) {
+                  alert('Permission denied. Please reload the page and try again.');
+                }
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-2xl text-base font-semibold transition-colors"
+              className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-2xl text-lg font-semibold transition-colors"
             >
               Enable Sensors & GPS
             </button>
