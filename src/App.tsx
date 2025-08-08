@@ -24,6 +24,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
+  const [isHiding, setIsHiding] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
   
   const sensorService = useRef<SensorService>(new SensorService());
@@ -185,9 +186,16 @@ function App() {
         
         {/* Permission Request Button for iOS */}
         {needsPermission && !permissionsGranted && (
-          <div className={`rounded-2xl p-6 mb-4 text-center transition-colors ${
-            isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
-          }`}>
+          <div 
+            className={`rounded-2xl p-6 mb-4 text-center transition-all duration-500 ease-out transform ${
+              isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
+            } ${
+              isHiding ? 'opacity-0 scale-95 -translate-y-4' : 'opacity-100 scale-100 translate-y-0'
+            }`}
+            style={{
+              transitionProperty: 'opacity, transform',
+            }}
+          >
             <img 
               src="/logo.png" 
               alt="LeafAngler" 
@@ -203,7 +211,13 @@ function App() {
               onClick={async () => {
                 try {
                   await startSensors();
-                  setNeedsPermission(false);
+                  // Start fade out animation
+                  setIsHiding(true);
+                  // Wait for animation to complete before hiding
+                  setTimeout(() => {
+                    setNeedsPermission(false);
+                    setIsHiding(false);
+                  }, 500);
                 } catch (error) {
                   alert('Permission denied. Please reload the page and try again.');
                 }
