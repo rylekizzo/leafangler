@@ -316,17 +316,16 @@ function App() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            {/* Three stars icon */}
-            <svg 
-              className="w-5 h-5" 
-              viewBox="0 0 24 24" 
-              fill="currentColor" 
-              xmlns="http://www.w3.org/2000/svg"
+            {/* Eco leaf icon from Material Symbols */}
+            <span 
+              className="material-symbols-outlined"
+              style={{
+                fontSize: '20px',
+                fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}
             >
-              <path d="M5 9.5L6.122 11.4L8.5 11.65L6.55 13.3L7.15 15.5L5 14.25L2.85 15.5L3.45 13.3L1.5 11.65L3.878 11.4L5 9.5Z" opacity="0.8"/>
-              <path d="M12 6L13.545 9.13L17 9.635L14.25 12.055L15.09 15.5L12 13.77L8.91 15.5L9.75 12.055L7 9.635L10.455 9.13L12 6Z"/>
-              <path d="M19 9.5L20.122 11.4L22.5 11.65L20.55 13.3L21.15 15.5L19 14.25L16.85 15.5L17.45 13.3L15.5 11.65L17.878 11.4L19 9.5Z" opacity="0.8"/>
-            </svg>
+              temp_preferences_eco
+            </span>
             Start Measuring
           </button>
         </div>
