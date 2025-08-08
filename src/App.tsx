@@ -55,16 +55,27 @@ function App() {
     const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Pitch', 'Roll', 'Yaw'];
     const csvRows = [
       headers.join(','),
-      ...recordings.map(r => [
-        r.timestamp.toISOString(),
-        r.timestamp.getFullYear(),
-        r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
-        r.timestamp.getDate(),
-        r.tag,
-        r.angles.pitch.toFixed(2),
-        r.angles.roll.toFixed(2),
-        r.angles.yaw.toFixed(2)
-      ].join(','))
+      ...recordings.map(r => {
+        // Format timestamp as YYYY-MM-DD HH:MM:SS for Excel/Python compatibility
+        const year = r.timestamp.getFullYear();
+        const month = String(r.timestamp.getMonth() + 1).padStart(2, '0');
+        const day = String(r.timestamp.getDate()).padStart(2, '0');
+        const hours = String(r.timestamp.getHours()).padStart(2, '0');
+        const minutes = String(r.timestamp.getMinutes()).padStart(2, '0');
+        const seconds = String(r.timestamp.getSeconds()).padStart(2, '0');
+        const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        
+        return [
+          formattedTimestamp,
+          r.timestamp.getFullYear(),
+          r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
+          r.timestamp.getDate(),
+          r.tag,
+          r.angles.pitch.toFixed(2),
+          r.angles.roll.toFixed(2),
+          r.angles.yaw.toFixed(2)
+        ].join(',');
+      })
     ];
     
     const csvContent = csvRows.join('\n');
