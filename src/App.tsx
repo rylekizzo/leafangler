@@ -8,6 +8,7 @@ interface Recording {
   position: Position;
   normal: SurfaceNormal;
   orientation: LeafOrientation;
+  gps: { latitude: number; longitude: number; altitude: number | null } | null;
   tag: string;
 }
 
@@ -21,23 +22,33 @@ function App() {
   const [currentTag, setCurrentTag] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribeAngles = useRef<(() => void) | null>(null);
   const unsubscribePosition = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    // Start sensor listening immediately
-    sensorService.current.startListening();
+  const startSensors = async () => {
+    // Start sensor listening with permissions
+    await sensorService.current.startListening();
+    setPermissionsGranted(true);
+    
     unsubscribeAngles.current = sensorService.current.subscribe((newAngles) => {
       setAngles(newAngles);
-      // Calculate orientation data when angles change
+      // Calculate orientation data when angles changes
       const newNormal = sensorService.current.calculateSurfaceNormal(newAngles);
       const newOrientation = sensorService.current.calculateLeafOrientation(newNormal);
       setNormal(newNormal);
       setOrientation(newOrientation);
     });
     unsubscribePosition.current = sensorService.current.subscribePosition(setPosition);
+    
+    // Update GPS coordinates periodically
+    const gpsInterval = setInterval(() => {
+      const coords = sensorService.current.getGPSCoordinates();
+      setGpsCoords(coords);
+    }, 1000);
     
     // Update time every second
     const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -51,7 +62,24 @@ function App() {
       }
       sensorService.current.stopListening();
       clearInterval(timeInterval);
+      clearInterval(gpsInterval);
     };
+  };
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    
+    // Try to start automatically (works on Android and desktop)
+    startSensors().then(cleanupFn => {
+      cleanup = cleanupFn;
+    }).catch(error => {
+      console.log('Auto-start failed, user needs to grant permissions:', error);
+    });
+    
+    return () => {
+      if (cleanup) cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRecord = () => {
@@ -61,6 +89,7 @@ function App() {
       position,
       normal,
       orientation,
+      gps: gpsCoords,
       tag: currentTag.trim() || 'Default' 
     }]);
   };
@@ -74,8 +103,8 @@ function App() {
   const handleSave = () => {
     if (recordings.length === 0) return;
     
-    // Create CSV content with new columns for zenith, azimuth, and normal vector
-    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'X', 'Y', 'Z'];
+    // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
+    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Latitude', 'Longitude', 'Altitude', 'Pitch', 'Roll', 'Yaw', 'Zenith', 'Azimuth', 'Normal_X', 'Normal_Y', 'Normal_Z', 'X', 'Y', 'Z'];
     const csvRows = [
       headers.join(','),
       ...recordings.map(r => {
@@ -94,6 +123,9 @@ function App() {
           r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
           r.timestamp.getDate(),
           r.tag,
+          r.gps?.latitude?.toFixed(6) || '',
+          r.gps?.longitude?.toFixed(6) || '',
+          r.gps?.altitude?.toFixed(2) || '',
           r.angles.pitch.toFixed(2),
           r.angles.roll.toFixed(2),
           r.angles.yaw.toFixed(2),
@@ -135,6 +167,26 @@ function App() {
         : 'bg-gray-50 text-gray-900'
     }`}>
       <div className="max-w-4xl mx-auto">
+        
+        {/* Permission Request Button for iOS */}
+        {!permissionsGranted && typeof (DeviceOrientationEvent as any).requestPermission === 'function' && (
+          <div className={`rounded-2xl p-4 mb-4 text-center transition-colors ${
+            isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
+          }`}>
+            <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              To use the sensors, please grant permissions:
+            </p>
+            <button
+              onClick={async () => {
+                const cleanup = await startSensors();
+                // Store cleanup function if needed
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-2xl text-base font-semibold transition-colors"
+            >
+              Enable Sensors & GPS
+            </button>
+          </div>
+        )}
 
         {/* Settings Panel - Floating Window */}
         {showSettings && (
@@ -226,6 +278,16 @@ function App() {
               <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.azimuth.toFixed(2)}°</div>
             </div>
           </div>
+          
+          {/* GPS Coordinates */}
+          {gpsCoords && (
+            <div className={`text-center py-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <span className="font-mono">
+                GPS: {gpsCoords.latitude.toFixed(6)}°, {gpsCoords.longitude.toFixed(6)}°
+                {gpsCoords.altitude && ` | Alt: ${gpsCoords.altitude.toFixed(1)}m`}
+              </span>
+            </div>
+          )}
           
           {/* Tag Input */}
           <div className={`border-t pt-4 ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>

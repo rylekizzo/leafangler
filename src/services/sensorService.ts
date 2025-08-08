@@ -38,15 +38,21 @@ export class SensorService {
   private subscribers: Set<AngleSubscriber> = new Set();
   private positionSubscribers: Set<PositionSubscriber> = new Set();
   private isListening: boolean = false;
+  private permissionsGranted: boolean = false;
   
   // Position tracking variables
   private velocity: Position = { x: 0, y: 0, z: 0 };
   private lastAcceleration: Position = { x: 0, y: 0, z: 0 };
   private lastTimestamp: number = 0;
+  
+  // GPS coordinates
+  private gpsCoordinates: { latitude: number; longitude: number; altitude: number | null } | null = null;
+  private watchId: number | null = null;
 
   constructor() {
     this.handleDeviceOrientation = this.handleDeviceOrientation.bind(this);
     this.handleDeviceMotion = this.handleDeviceMotion.bind(this);
+    this.handleGeolocation = this.handleGeolocation.bind(this);
   }
 
   getAngles(): Angles {
@@ -145,14 +151,74 @@ export class SensorService {
   }
 
   areSensorsAvailable(): boolean {
-    return typeof window.DeviceOrientationEvent !== 'undefined';
+    return typeof window.DeviceOrientationEvent !== 'undefined' && 
+           typeof window.DeviceMotionEvent !== 'undefined';
   }
 
-  startListening(): void {
+  async requestPermissions(): Promise<boolean> {
+    try {
+      // Request device orientation permission for iOS 13+
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        const orientationPermission = await (DeviceOrientationEvent as any).requestPermission();
+        const motionPermission = await (DeviceMotionEvent as any).requestPermission();
+        
+        if (orientationPermission !== 'granted' || motionPermission !== 'granted') {
+          console.error('Sensor permissions denied');
+          return false;
+        }
+      }
+      
+      // Request GPS permission
+      if ('geolocation' in navigator) {
+        await new Promise<void>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            () => resolve(),
+            (error) => {
+              console.error('GPS permission denied:', error);
+              resolve(); // Continue even if GPS fails
+            },
+            { timeout: 5000 }
+          );
+        });
+      }
+      
+      this.permissionsGranted = true;
+      return true;
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+      return false;
+    }
+  }
+
+  async startListening(): Promise<void> {
     if (this.isListening) return;
     
+    // Request permissions if not already granted
+    if (!this.permissionsGranted) {
+      const granted = await this.requestPermissions();
+      if (!granted && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        console.error('Cannot start listening without permissions');
+        return;
+      }
+    }
+    
+    // Start device orientation and motion listeners
     window.addEventListener('deviceorientation', this.handleDeviceOrientation);
     window.addEventListener('devicemotion', this.handleDeviceMotion);
+    
+    // Start GPS tracking
+    if ('geolocation' in navigator) {
+      this.watchId = navigator.geolocation.watchPosition(
+        this.handleGeolocation,
+        (error) => console.error('GPS error:', error),
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    }
+    
     this.isListening = true;
   }
 
@@ -161,7 +227,18 @@ export class SensorService {
     
     window.removeEventListener('deviceorientation', this.handleDeviceOrientation);
     window.removeEventListener('devicemotion', this.handleDeviceMotion);
+    
+    // Stop GPS tracking
+    if (this.watchId !== null && 'geolocation' in navigator) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    
     this.isListening = false;
+  }
+  
+  getGPSCoordinates(): { latitude: number; longitude: number; altitude: number | null } | null {
+    return this.gpsCoordinates;
   }
 
   subscribe(callback: AngleSubscriber): () => void {
@@ -187,6 +264,14 @@ export class SensorService {
       };
       this.updateAngles();
     }
+  }
+
+  private handleGeolocation(position: GeolocationPosition): void {
+    this.gpsCoordinates = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      altitude: position.coords.altitude
+    };
   }
 
   private handleDeviceMotion(event: DeviceMotionEvent): void {
