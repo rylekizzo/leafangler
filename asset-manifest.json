@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/leafangler/static/css/main.ebb26dca.css",
-    "main.js": "/leafangler/static/js/main.6d298b0d.js",
+    "main.css": "/leafangler/static/css/main.54b64c7f.css",
+    "main.js": "/leafangler/static/js/main.1ee38c2d.js",
     "static/js/453.e335af40.chunk.js": "/leafangler/static/js/453.e335af40.chunk.js",
     "index.html": "/leafangler/index.html",
-    "main.ebb26dca.css.map": "/leafangler/static/css/main.ebb26dca.css.map",
-    "main.6d298b0d.js.map": "/leafangler/static/js/main.6d298b0d.js.map",
+    "main.54b64c7f.css.map": "/leafangler/static/css/main.54b64c7f.css.map",
+    "main.1ee38c2d.js.map": "/leafangler/static/js/main.1ee38c2d.js.map",
     "453.e335af40.chunk.js.map": "/leafangler/static/js/453.e335af40.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.ebb26dca.css",
-    "static/js/main.6d298b0d.js"
+    "static/css/main.54b64c7f.css",
+    "static/js/main.1ee38c2d.js"
   ]
 }
