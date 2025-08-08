@@ -117,23 +117,6 @@ function App() {
         : 'bg-gray-50 text-gray-900'
     }`}>
       <div className="max-w-4xl mx-auto">
-        
-        {/* Settings Button */}
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg transition-colors ${
-              isDarkMode 
-                ? 'hover:bg-dark-700 text-gray-400 hover:text-white' 
-                : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        </div>
 
         {/* Settings Panel - Floating Window */}
         {showSettings && (
@@ -232,6 +215,16 @@ function App() {
           </div>
         </div>
 
+        {/* Record Button */}
+        <div className="flex justify-center mb-4">
+          <button
+            onClick={handleRecord}
+            className="bg-red-600 hover:bg-red-700 text-white px-8 sm:px-12 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
+          >
+            Record
+          </button>
+        </div>
+
         {/* Data Table Card */}
         <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
@@ -278,40 +271,48 @@ function App() {
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+        {/* Undo and Save Buttons */}
+        <div className="flex gap-3 sm:gap-4 justify-center mb-4">
           <button
-            onClick={handleRecord}
-            className="bg-red-600 hover:bg-red-700 text-white px-8 sm:px-12 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
+            onClick={handleUndo}
+            disabled={recordings.length === 0}
+            className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
+              isDarkMode
+                ? 'bg-dark-700 hover:bg-dark-600 disabled:bg-dark-700 disabled:opacity-50 text-white'
+                : 'bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:opacity-50 text-gray-700'
+            }`}
           >
-            Record
+            Undo
           </button>
           
-          <div className="flex gap-3 sm:gap-4">
-            <button
-              onClick={handleUndo}
-              disabled={recordings.length === 0}
-              className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
-                isDarkMode
-                  ? 'bg-dark-700 hover:bg-dark-600 disabled:bg-dark-700 disabled:opacity-50 text-white'
-                  : 'bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:opacity-50 text-gray-700'
-              }`}
-            >
-              Undo
-            </button>
-            
-            <button
-              onClick={handleSave}
-              disabled={recordings.length === 0}
-              className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
-                isDarkMode
-                  ? 'bg-green-600 hover:bg-green-700 disabled:bg-dark-700 disabled:opacity-50 text-white'
-                  : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:opacity-50 text-white disabled:text-gray-400'
-              }`}
-            >
-              Save
-            </button>
-          </div>
+          <button
+            onClick={handleSave}
+            disabled={recordings.length === 0}
+            className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg transition-colors ${
+              isDarkMode
+                ? 'bg-green-600 hover:bg-green-700 disabled:bg-dark-700 disabled:opacity-50 text-white'
+                : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:opacity-50 text-white disabled:text-gray-400'
+            }`}
+          >
+            Save
+          </button>
+        </div>
+
+        {/* Settings Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2 rounded-lg transition-colors ${
+              isDarkMode 
+                ? 'hover:bg-dark-700 text-gray-400 hover:text-white' 
+                : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
