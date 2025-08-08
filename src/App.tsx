@@ -191,13 +191,10 @@ function App() {
             <img 
               src="/logo.png" 
               alt="LeafAngler" 
-              className="w-20 h-20 mx-auto mb-4"
+              className="w-40 h-40 mx-auto mb-4"
             />
-            <p className={`mb-2 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            <p className={`mb-4 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
               LeafAngler
-            </p>
-            <p className={`mb-4 text-lg font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              📱 iPhone/iPad Detected
             </p>
             <p className={`mb-6 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               To measure leaf angles, we need access to your device's motion sensors and GPS location.
