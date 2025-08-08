@@ -255,9 +255,44 @@ function App() {
                 alert('Permission denied. Please reload the page and try again.');
               }
             }}
-            className="bg-green-600 hover:bg-green-700 text-white px-16 py-5 rounded-2xl text-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+            className="relative px-20 py-5 rounded-full text-xl font-semibold transition-all transform active:scale-95"
+            style={{
+              background: 'linear-gradient(180deg, #34c759 0%, #30a850 100%)',
+              boxShadow: `
+                0 1px 2px rgba(0, 0, 0, 0.04),
+                0 4px 8px rgba(0, 0, 0, 0.08),
+                0 12px 20px rgba(52, 199, 89, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+              `,
+              color: 'white',
+              textShadow: '0 -1px 0 rgba(0, 0, 0, 0.15)',
+              border: '0.5px solid rgba(0, 0, 0, 0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #3dd760 0%, #34b855 100%)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = `
+                0 1px 2px rgba(0, 0, 0, 0.04),
+                0 6px 12px rgba(0, 0, 0, 0.1),
+                0 16px 24px rgba(52, 199, 89, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+              `;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(180deg, #34c759 0%, #30a850 100%)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = `
+                0 1px 2px rgba(0, 0, 0, 0.04),
+                0 4px 8px rgba(0, 0, 0, 0.08),
+                0 12px 20px rgba(52, 199, 89, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
+              `;
+            }}
           >
-            Enable Sensors & GPS
+            Enable
           </button>
         </div>
       </div>
