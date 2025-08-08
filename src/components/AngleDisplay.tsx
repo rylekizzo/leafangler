@@ -7,94 +7,81 @@ interface AngleDisplayProps {
 }
 
 const AngleDisplay: React.FC<AngleDisplayProps> = ({ label, value, unit }) => {
-  const getGradientClass = () => {
+  // Determine the axis icon
+  const getAxisIcon = () => {
     switch (label.toLowerCase()) {
       case 'pitch':
-        return 'from-leaf-light/20 to-leaf-main/20 border-leaf-light/40';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+          </svg>
+        );
       case 'roll':
-        return 'from-leaf-main/20 to-leaf-dark/20 border-leaf-main/40';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        );
       case 'yaw':
-        return 'from-leaf-dark/20 to-protractor/20 border-leaf-dark/40';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        );
       default:
-        return 'from-gray-200/20 to-gray-400/20 border-gray-300/40';
+        return null;
     }
   };
 
-  const getIconColor = () => {
-    switch (label.toLowerCase()) {
-      case 'pitch':
-        return 'text-leaf-light';
-      case 'roll':
-        return 'text-leaf-main';
-      case 'yaw':
-        return 'text-leaf-dark';
-      default:
-        return 'text-gray-400';
-    }
-  };
-
-  const getIcon = () => {
-    switch (label.toLowerCase()) {
-      case 'pitch':
-        return '↕';
-      case 'roll':
-        return '↔';
-      case 'yaw':
-        return '↻';
-      default:
-        return '•';
-    }
-  };
-
-  // Determine if angle is significantly tilted for visual feedback
-  const isActive = Math.abs(value) > 5;
+  // Determine if the angle is significant
+  const isSignificant = Math.abs(value) > 5;
+  
+  // Format the value with sign
+  const formattedValue = value >= 0 ? `+${value.toFixed(1)}` : value.toFixed(1);
 
   return (
-    <div className={`
-      relative backdrop-blur-md bg-gradient-to-br ${getGradientClass()} 
-      rounded-2xl p-6 border border-white/20
-      shadow-2xl transform transition-all duration-300 hover:scale-105
-      ${isActive ? 'animate-pulse-slow' : ''}
-    `}>
-      {/* Decorative corner accent */}
-      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-white/10 to-transparent rounded-bl-full"></div>
-      
-      <div className="relative z-10 flex flex-col items-center">
-        {/* Icon and Label */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className={`text-3xl ${getIconColor()}`}>{getIcon()}</span>
-          <h3 className="text-lg font-semibold text-white/90 uppercase tracking-wider">
-            {label}
-          </h3>
-        </div>
-        
-        {/* Value Display */}
-        <div className="relative">
-          <div className="flex items-baseline justify-center">
-            <span className={`text-5xl font-bold text-white ${isActive ? 'drop-shadow-glow' : ''}`}>
-              {value >= 0 ? '+' : ''}{value.toFixed(1)}
-            </span>
-            <span className="text-2xl ml-1 text-white/70">
-              {unit}
-            </span>
+    <div className="bg-white rounded-2xl shadow-apple p-6 transition-all hover:shadow-apple-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <div className={`text-apple-gray-400 ${isSignificant ? 'text-apple-green' : ''}`}>
+            {getAxisIcon()}
           </div>
-          
-          {/* Visual indicator bar */}
-          <div className="mt-3 w-32 h-2 bg-black/20 rounded-full overflow-hidden">
-            <div 
-              className={`h-full bg-gradient-to-r ${getGradientClass().replace('/20', '')} transition-all duration-300`}
-              style={{ 
-                width: `${Math.min(Math.abs(value) / 90 * 100, 100)}%`,
-                marginLeft: value < 0 ? 'auto' : '0'
-              }}
-            ></div>
-          </div>
+          <h3 className="text-headline text-apple-gray-600">{label}</h3>
         </div>
-        
-        {/* Status indicator */}
-        <div className={`mt-3 text-xs text-white/60 ${isActive ? 'visible' : 'invisible'}`}>
-          {Math.abs(value) > 45 ? 'High Tilt' : 'Active'}
+        {isSignificant && (
+          <div className="w-2 h-2 rounded-full bg-apple-green animate-pulse"></div>
+        )}
+      </div>
+
+      {/* Value Display */}
+      <div className="flex items-baseline">
+        <span className={`text-display tabular-nums ${isSignificant ? 'text-apple-gray-900' : 'text-apple-gray-400'}`}>
+          {formattedValue}
+        </span>
+        <span className="text-title2 text-apple-gray-400 ml-1">{unit}</span>
+      </div>
+
+      {/* Visual Indicator */}
+      <div className="mt-4">
+        <div className="h-1 bg-apple-gray-100 rounded-full overflow-hidden">
+          <div 
+            className={`h-full transition-all duration-300 ${
+              isSignificant ? 'bg-apple-green' : 'bg-apple-gray-300'
+            }`}
+            style={{ 
+              width: `${Math.min(Math.abs(value) / 90 * 100, 100)}%`,
+              marginLeft: value < 0 ? 'auto' : '0'
+            }}
+          />
         </div>
+      </div>
+
+      {/* Range Indicator */}
+      <div className="mt-2 flex justify-between text-caption text-apple-gray-400">
+        <span>-90°</span>
+        <span>0°</span>
+        <span>+90°</span>
       </div>
     </div>
   );
