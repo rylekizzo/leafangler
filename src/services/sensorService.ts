@@ -162,33 +162,36 @@ export class SensorService {
       // Request device orientation permission for iOS 13+
       if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
         const orientationPermission = await (DeviceOrientationEvent as any).requestPermission();
-        const motionPermission = await (DeviceMotionEvent as any).requestPermission();
         
-        if (orientationPermission !== 'granted' || motionPermission !== 'granted') {
-          console.error('Sensor permissions denied');
-          return false;
+        if (orientationPermission !== 'granted') {
+          console.error('Orientation permission denied');
+          throw new Error('Orientation permission denied');
+        }
+        
+        // Also request motion permission if available
+        if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+          const motionPermission = await (DeviceMotionEvent as any).requestPermission();
+          if (motionPermission !== 'granted') {
+            console.error('Motion permission denied');
+            throw new Error('Motion permission denied');
+          }
         }
       }
       
-      // Request GPS permission
+      // Request GPS permission separately (don't block on this)
       if ('geolocation' in navigator) {
-        await new Promise<void>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            () => resolve(),
-            (error) => {
-              console.error('GPS permission denied:', error);
-              resolve(); // Continue even if GPS fails
-            },
-            { timeout: 5000 }
-          );
-        });
+        navigator.geolocation.getCurrentPosition(
+          () => console.log('GPS permission granted'),
+          (error) => console.error('GPS permission denied:', error),
+          { timeout: 5000 }
+        );
       }
       
       this.permissionsGranted = true;
       return true;
     } catch (error) {
       console.error('Error requesting permissions:', error);
-      return false;
+      throw error; // Re-throw to handle in UI
     }
   }
 
@@ -197,11 +200,7 @@ export class SensorService {
     
     // Request permissions if not already granted
     if (!this.permissionsGranted) {
-      const granted = await this.requestPermissions();
-      if (!granted && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        console.error('Cannot start listening without permissions');
-        return;
-      }
+      await this.requestPermissions(); // Will throw if denied
     }
     
     // Start device orientation and motion listeners

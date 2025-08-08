@@ -221,6 +221,7 @@ function App() {
                   }, 500);
                 } catch (error) {
                   // Don't animate if permissions were denied
+                  console.error('Permission error:', error);
                   alert('Permission denied. Please reload the page and try again.');
                 }
               }}
