@@ -52,11 +52,14 @@ function App() {
     if (recordings.length === 0) return;
     
     // Create CSV content
-    const headers = ['Timestamp', 'Tag', 'Pitch', 'Roll', 'Yaw'];
+    const headers = ['Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Pitch', 'Roll', 'Yaw'];
     const csvRows = [
       headers.join(','),
       ...recordings.map(r => [
         r.timestamp.toISOString(),
+        r.timestamp.getFullYear(),
+        r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
+        r.timestamp.getDate(),
         r.tag,
         r.angles.pitch.toFixed(2),
         r.angles.roll.toFixed(2),
