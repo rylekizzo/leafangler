@@ -185,14 +185,22 @@ function App() {
         
         {/* Permission Request Button for iOS */}
         {needsPermission && !permissionsGranted && (
-          <div className={`rounded-2xl p-4 mb-4 text-center transition-colors ${
+          <div className={`rounded-2xl p-6 mb-4 text-center transition-colors ${
             isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
           }`}>
-            <p className={`mb-4 text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            <img 
+              src="/logo.png" 
+              alt="LeafAngler" 
+              className="w-20 h-20 mx-auto mb-4"
+            />
+            <p className={`mb-2 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              LeafAngler
+            </p>
+            <p className={`mb-4 text-lg font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               📱 iPhone/iPad Detected
             </p>
-            <p className={`mb-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              To measure leaf angles, we need access to your device's motion sensors.
+            <p className={`mb-6 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              To measure leaf angles, we need access to your device's motion sensors and GPS location.
             </p>
             <button
               onClick={async () => {
@@ -203,7 +211,7 @@ function App() {
                   alert('Permission denied. Please reload the page and try again.');
                 }
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-2xl text-lg font-semibold transition-colors"
+              className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-2xl text-lg font-semibold transition-colors shadow-lg"
             >
               Enable Sensors & GPS
             </button>
