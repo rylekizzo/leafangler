@@ -15,6 +15,14 @@ interface Recording {
   tag: string;
 }
 
+interface SavedDataset {
+  id: string;
+  name: string;
+  createdAt: Date;
+  recordings: Recording[];
+  recordingCount: number;
+}
+
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
@@ -53,6 +61,28 @@ function App() {
   const [needsPermission, setNeedsPermission] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
+  const [savedDatasets, setSavedDatasets] = useState<SavedDataset[]>(() => {
+    // Load saved datasets from localStorage
+    const saved = localStorage.getItem('leafangler-datasets');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((d: any) => ({
+          ...d,
+          createdAt: new Date(d.createdAt),
+          recordings: d.recordings.map((r: any) => ({
+            ...r,
+            timestamp: new Date(r.timestamp)
+          }))
+        }));
+      } catch (e) {
+        console.error('Failed to load saved datasets:', e);
+        return [];
+      }
+    }
+    return [];
+  });
+  const [currentView, setCurrentView] = useState<'measure' | 'saved'>('measure');
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribeAngles = useRef<(() => void) | null>(null);
@@ -110,6 +140,11 @@ function App() {
     localStorage.setItem('leafangler-dark-mode', isDarkMode.toString());
   }, [isDarkMode]);
 
+  // Save datasets to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('leafangler-datasets', JSON.stringify(savedDatasets));
+  }, [savedDatasets]);
+
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
@@ -158,122 +193,30 @@ function App() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (recordings.length === 0) return;
     
-    console.log('Save button clicked, recordings:', recordings.length);
-    console.log('Platform check - isNativePlatform:', Capacitor.isNativePlatform());
-    console.log('Platform info:', Capacitor.getPlatform());
+    // Prompt for dataset name
+    const datasetName = window.prompt('Enter a name for this dataset:', `Dataset ${new Date().toLocaleDateString()}`);
+    if (!datasetName || datasetName.trim() === '') return;
     
-    // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
-    const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
-    const csvRows = [
-      headers.join(','),
-      ...recordings.map((r, index) => {
-        // Format timestamp as YYYY-MM-DD HH:MM:SS for Excel/Python compatibility
-        const year = r.timestamp.getFullYear();
-        const month = String(r.timestamp.getMonth() + 1).padStart(2, '0');
-        const day = String(r.timestamp.getDate()).padStart(2, '0');
-        const hours = String(r.timestamp.getHours()).padStart(2, '0');
-        const minutes = String(r.timestamp.getMinutes()).padStart(2, '0');
-        const seconds = String(r.timestamp.getSeconds()).padStart(2, '0');
-        const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        
-        return [
-          index + 1, // Observation number starting from 1
-          formattedTimestamp,
-          r.timestamp.getFullYear(),
-          r.timestamp.getMonth() + 1, // getMonth() returns 0-11, so add 1
-          r.timestamp.getDate(),
-          r.tag,
-          r.orientation.zenith.toFixed(2),
-          r.orientation.azimuth.toFixed(2),
-          r.gps?.latitude?.toFixed(6) || '',
-          r.gps?.longitude?.toFixed(6) || '',
-          r.gps?.altitude?.toFixed(2) || '',
-          r.angles.pitch.toFixed(2),
-          r.angles.roll.toFixed(2),
-          r.angles.yaw.toFixed(2),
-          r.normal.x.toFixed(4),
-          r.normal.y.toFixed(4),
-          r.normal.z.toFixed(4),
-          r.position.x.toFixed(3),
-          r.position.y.toFixed(3),
-          r.position.z.toFixed(3)
-        ].join(',');
-      })
-    ];
+    // Create new dataset
+    const newDataset: SavedDataset = {
+      id: Date.now().toString(),
+      name: datasetName.trim(),
+      createdAt: new Date(),
+      recordings: [...recordings],
+      recordingCount: recordings.length
+    };
     
-    const csvContent = csvRows.join('\n');
-    const fileName = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
+    // Add to saved datasets
+    setSavedDatasets(prev => [newDataset, ...prev]);
     
-    // For now, use web approach even on native platform since plugins aren't working
-    // TODO: Fix Capacitor plugin registration
+    // Clear current recordings
+    setRecordings([]);
     
-    // Create a downloadable blob and trigger download/share
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    
-    if (Capacitor.isNativePlatform()) {
-      // Use Web Share API on iOS for native sharing experience
-      if (navigator.share) {
-        try {
-          // Create a File object from the CSV data
-          const file = new File([csvContent], fileName, { type: 'text/csv' });
-          
-          await navigator.share({
-            title: 'LeafAngler Data Export',
-            text: `${recordings.length} leaf angle measurements from LeafAngler`,
-            files: [file]
-          });
-        } catch (error: any) {
-          // Fallback if file sharing fails - share as text
-          try {
-            await navigator.share({
-              title: 'LeafAngler Data Export',
-              text: `${recordings.length} leaf angle measurements:\n\n${csvContent}`
-            });
-          } catch (textError: any) {
-            console.error('Share error:', textError);
-            alert('Sharing is not available on this device.');
-          }
-        }
-      } else {
-        // Fallback for devices without Web Share API
-        alert('Sharing is not available on this device. Please copy the data manually.');
-        console.log('CSV Data:', csvContent);
-      }
-    } else {
-      // Web platform - use existing logic      
-      // Check if we're on Safari/iOS web
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      
-      if (isIOS || isSafari) {
-        // For Safari/iOS, use FileReader approach
-        const reader = new FileReader();
-        reader.onload = function() {
-          const a = document.createElement('a');
-          a.href = reader.result as string;
-          a.download = fileName;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        };
-        reader.readAsDataURL(blob);
-      } else {
-        // Standard approach for other browsers
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      }
-    }
+    // Show success message
+    alert(`Dataset "${datasetName}" saved with ${recordings.length} measurements!`);
   };
 
   const formatTime = (date: Date) => {
@@ -383,6 +326,42 @@ function App() {
     }`}>
       <div className="max-w-4xl mx-auto">
         
+        {/* Navigation */}
+        <div className="mb-4">
+          <div className={`rounded-2xl p-1 ${isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'}`}>
+            <div className="flex">
+              <button
+                onClick={() => setCurrentView('measure')}
+                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  currentView === 'measure'
+                    ? isDarkMode 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-green-500 text-white'
+                    : isDarkMode
+                      ? 'text-gray-400 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Measure
+              </button>
+              <button
+                onClick={() => setCurrentView('saved')}
+                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  currentView === 'saved'
+                    ? isDarkMode 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-green-500 text-white'
+                    : isDarkMode
+                      ? 'text-gray-400 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Saved ({savedDatasets.length})
+              </button>
+            </div>
+          </div>
+        </div>
+        
         {/* Settings Panel - Floating Window */}
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -458,7 +437,10 @@ function App() {
           </div>
         )}
         
-        {/* Current Values Card */}
+        {/* Measure View */}
+        {currentView === 'measure' && (
+          <>
+            {/* Current Values Card */}
         <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
@@ -618,22 +600,154 @@ function App() {
           </button>
         </div>
 
-        {/* Settings Button */}
-        <div className="flex justify-center">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg transition-colors ${
-              isDarkMode 
-                ? 'hover:bg-dark-700 text-gray-400 hover:text-white' 
-                : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        </div>
+            {/* Settings Button */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode 
+                    ? 'hover:bg-dark-700 text-gray-400 hover:text-white' 
+                    : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Saved Datasets View */}
+        {currentView === 'saved' && (
+          <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
+            isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
+          }`}>
+            <h2 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Saved Datasets
+            </h2>
+            
+            {savedDatasets.length === 0 ? (
+              <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <p className="text-lg mb-2">No saved datasets yet</p>
+                <p className="text-sm">Start measuring and save your first dataset!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {savedDatasets.map((dataset) => (
+                  <div 
+                    key={dataset.id}
+                    className={`p-4 rounded-xl ${
+                      isDarkMode ? 'bg-dark-700 hover:bg-dark-600' : 'bg-gray-50 hover:bg-gray-100'
+                    } transition-colors cursor-pointer`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {dataset.name}
+                      </h3>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            // Export dataset as CSV
+                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+                            const csvRows = [
+                              headers.join(','),
+                              ...dataset.recordings.map((r, index) => {
+                                const year = r.timestamp.getFullYear();
+                                const month = String(r.timestamp.getMonth() + 1).padStart(2, '0');
+                                const day = String(r.timestamp.getDate()).padStart(2, '0');
+                                const hours = String(r.timestamp.getHours()).padStart(2, '0');
+                                const minutes = String(r.timestamp.getMinutes()).padStart(2, '0');
+                                const seconds = String(r.timestamp.getSeconds()).padStart(2, '0');
+                                const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                                
+                                return [
+                                  index + 1,
+                                  formattedTimestamp,
+                                  r.timestamp.getFullYear(),
+                                  r.timestamp.getMonth() + 1,
+                                  r.timestamp.getDate(),
+                                  r.tag,
+                                  r.orientation.zenith.toFixed(2),
+                                  r.orientation.azimuth.toFixed(2),
+                                  r.gps?.latitude?.toFixed(6) || '',
+                                  r.gps?.longitude?.toFixed(6) || '',
+                                  r.gps?.altitude?.toFixed(2) || '',
+                                  r.angles.pitch.toFixed(2),
+                                  r.angles.roll.toFixed(2),
+                                  r.angles.yaw.toFixed(2),
+                                  r.normal.x.toFixed(4),
+                                  r.normal.y.toFixed(4),
+                                  r.normal.z.toFixed(4),
+                                  r.position.x.toFixed(3),
+                                  r.position.y.toFixed(3),
+                                  r.position.z.toFixed(3)
+                                ].join(',');
+                              })
+                            ];
+                            
+                            const csvContent = csvRows.join('\n');
+                            const fileName = `${dataset.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${dataset.createdAt.toISOString().split('T')[0]}.csv`;
+                            
+                            // Use Web Share API if available
+                            if (navigator.share && Capacitor.isNativePlatform()) {
+                              navigator.share({
+                                title: `${dataset.name} - LeafAngler Export`,
+                                text: `${dataset.recordingCount} measurements from ${dataset.name}`,
+                                files: [new File([csvContent], fileName, { type: 'text/csv' })]
+                              }).catch(() => {
+                                // Fallback to text share
+                                navigator.share({
+                                  title: `${dataset.name} - LeafAngler Export`,
+                                  text: csvContent
+                                });
+                              });
+                            } else {
+                              // Web download
+                              const blob = new Blob([csvContent], { type: 'text/csv' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = fileName;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }
+                          }}
+                          className={`px-3 py-1 text-xs rounded ${
+                            isDarkMode 
+                              ? 'bg-green-600 hover:bg-green-700 text-white' 
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                          }`}
+                        >
+                          Export
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete dataset "${dataset.name}"?`)) {
+                              setSavedDatasets(prev => prev.filter(d => d.id !== dataset.id));
+                            }
+                          }}
+                          className={`px-3 py-1 text-xs rounded ${
+                            isDarkMode 
+                              ? 'bg-red-600 hover:bg-red-700 text-white' 
+                              : 'bg-red-500 hover:bg-red-600 text-white'
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <p>{dataset.recordingCount} measurements</p>
+                      <p>Created: {dataset.createdAt.toLocaleDateString()} at {dataset.createdAt.toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
