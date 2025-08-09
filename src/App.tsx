@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { SensorService, Angles, Position, SurfaceNormal, LeafOrientation } from './services/sensorService';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 interface Recording {
   timestamp: Date;
@@ -155,7 +158,7 @@ function App() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (recordings.length === 0) return;
     
     // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
@@ -198,40 +201,61 @@ function App() {
     ];
     
     const csvContent = csvRows.join('\n');
-    
-    // Safari-compatible download method
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const fileName = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
     
-    // Check if we're on Safari/iOS
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    
-    if (isIOS || isSafari) {
-      // For Safari/iOS, use a different approach
-      const reader = new FileReader();
-      reader.onload = function() {
+    // Check if we're running on a native platform (iOS/Android)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Save file to device and share it
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: csvContent,
+          directory: Directory.Documents,
+        });
+        
+        // Share the file using native share sheet
+        await Share.share({
+          title: 'LeafAngler Data Export',
+          text: `Exported ${recordings.length} leaf angle measurements`,
+          url: result.uri,
+        });
+      } catch (error) {
+        console.error('Error saving file on native platform:', error);
+        alert('Error saving file. Please try again.');
+      }
+    } else {
+      // Web platform - use existing logic
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Check if we're on Safari/iOS web
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      
+      if (isIOS || isSafari) {
+        // For Safari/iOS, use FileReader approach
+        const reader = new FileReader();
+        reader.onload = function() {
+          const a = document.createElement('a');
+          a.href = reader.result as string;
+          a.download = fileName;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        // Standard approach for other browsers
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = reader.result as string;
+        a.href = url;
         a.download = fileName;
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-      };
-      reader.readAsDataURL(blob);
-    } else {
-      // Standard approach for other browsers
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      // Clean up with a delay to ensure download starts
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      }
     }
   };
 
