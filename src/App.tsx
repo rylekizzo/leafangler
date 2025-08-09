@@ -87,6 +87,7 @@ function App() {
     onConfirm?: (value?: string) => void;
     onCancel?: () => void;
   } | null>(null);
+  const [modalInputValue, setModalInputValue] = useState('');
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribeAngles = useRef<(() => void) | null>(null);
@@ -239,6 +240,7 @@ function App() {
   // Custom modal helpers
   const showCustomPrompt = (title: string, message: string, defaultValue = '') => {
     return new Promise<string | null>((resolve) => {
+      setModalInputValue(defaultValue); // Set the initial value
       setShowModal({
         type: 'prompt',
         title,
@@ -246,10 +248,12 @@ function App() {
         defaultValue,
         onConfirm: (value) => {
           setShowModal(null);
+          setModalInputValue(''); // Clear for next use
           resolve(value || null);
         },
         onCancel: () => {
           setShowModal(null);
+          setModalInputValue(''); // Clear for next use
           resolve(null);
         }
       });
@@ -896,8 +900,10 @@ function App() {
             
             {showModal.type === 'prompt' && (
               <input
+                id="modal-prompt-input"
                 type="text"
-                defaultValue={showModal.defaultValue}
+                value={modalInputValue}
+                onChange={(e) => setModalInputValue(e.target.value)}
                 className={`w-full px-3 py-2 mb-6 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500 ${
                   isDarkMode 
                     ? 'bg-dark-700 border-dark-600 text-white' 
@@ -906,7 +912,7 @@ function App() {
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    showModal.onConfirm?.((e.target as HTMLInputElement).value);
+                    showModal.onConfirm?.(modalInputValue);
                   } else if (e.key === 'Escape') {
                     showModal.onCancel?.();
                   }
@@ -930,8 +936,7 @@ function App() {
               <button
                 onClick={() => {
                   if (showModal.type === 'prompt') {
-                    const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                    showModal.onConfirm?.(input?.value || '');
+                    showModal.onConfirm?.(modalInputValue);
                   } else {
                     showModal.onConfirm?.();
                   }
