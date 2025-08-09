@@ -59,7 +59,6 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
-  const [isHiding, setIsHiding] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
   const [savedDatasets, setSavedDatasets] = useState<SavedDataset[]>(() => {
     // Load saved datasets from localStorage
@@ -229,7 +228,7 @@ function App() {
   };
 
   // Show fullscreen permission screen if needed
-  if ((needsPermission || isHiding) && !permissionsGranted) {
+  if (needsPermission && !permissionsGranted) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
         isDarkMode 
@@ -237,12 +236,8 @@ function App() {
           : 'bg-gray-50 text-gray-900'
       }`}>
         <div 
-          className={`max-w-md w-full rounded-2xl p-8 text-center transition-all duration-500 ease-out ${
+          className={`max-w-md w-full rounded-2xl p-8 text-center ${
             isDarkMode ? 'bg-dark-800' : 'bg-white shadow-xl'
-          } ${
-            isHiding 
-              ? 'opacity-0 scale-95 transform -translate-y-4' 
-              : 'opacity-100 scale-100 transform translate-y-0'
           }`}
         >
           <img 
@@ -265,13 +260,8 @@ function App() {
               try {
                 // Request permissions first
                 await startSensors();
-                // Only animate if permissions were granted successfully
-                setIsHiding(true);
-                // Wait for animation to complete before transitioning
-                setTimeout(() => {
-                  setNeedsPermission(false);
-                  setIsHiding(false);
-                }, 500);
+                // Immediately transition without animation
+                setNeedsPermission(false);
               } catch (error) {
                 // Don't animate if permissions were denied
                 console.error('Permission error:', error);
