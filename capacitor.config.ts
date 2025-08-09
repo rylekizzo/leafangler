@@ -9,6 +9,12 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    Filesystem: {
+      requestPermissions: true
+    },
+    Share: {}
   }
 };
 

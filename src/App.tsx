@@ -161,6 +161,10 @@ function App() {
   const handleSave = async () => {
     if (recordings.length === 0) return;
     
+    console.log('Save button clicked, recordings:', recordings.length);
+    console.log('Platform check - isNativePlatform:', Capacitor.isNativePlatform());
+    console.log('Platform info:', Capacitor.getPlatform());
+    
     // Create CSV content with new columns for zenith, azimuth, normal vector, and GPS
     const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
     const csvRows = [
@@ -203,30 +207,43 @@ function App() {
     const csvContent = csvRows.join('\n');
     const fileName = `leaf-angles-${new Date().toISOString().split('T')[0]}.csv`;
     
-    // Check if we're running on a native platform (iOS/Android)
+    // For now, use web approach even on native platform since plugins aren't working
+    // TODO: Fix Capacitor plugin registration
+    
+    // Create a downloadable blob and trigger download/share
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
     if (Capacitor.isNativePlatform()) {
-      try {
-        // Save file to device and share it
-        const result = await Filesystem.writeFile({
-          path: fileName,
-          data: csvContent,
-          directory: Directory.Documents,
-        });
-        
-        // Share the file using native share sheet
-        await Share.share({
-          title: 'LeafAngler Data Export',
-          text: `Exported ${recordings.length} leaf angle measurements`,
-          url: result.uri,
-        });
-      } catch (error) {
-        console.error('Error saving file on native platform:', error);
-        alert('Error saving file. Please try again.');
+      // Use Web Share API on iOS for native sharing experience
+      if (navigator.share) {
+        try {
+          // Create a File object from the CSV data
+          const file = new File([csvContent], fileName, { type: 'text/csv' });
+          
+          await navigator.share({
+            title: 'LeafAngler Data Export',
+            text: `${recordings.length} leaf angle measurements from LeafAngler`,
+            files: [file]
+          });
+        } catch (error: any) {
+          // Fallback if file sharing fails - share as text
+          try {
+            await navigator.share({
+              title: 'LeafAngler Data Export',
+              text: `${recordings.length} leaf angle measurements:\n\n${csvContent}`
+            });
+          } catch (textError: any) {
+            console.error('Share error:', textError);
+            alert('Sharing is not available on this device.');
+          }
+        }
+      } else {
+        // Fallback for devices without Web Share API
+        alert('Sharing is not available on this device. Please copy the data manually.');
+        console.log('CSV Data:', csvContent);
       }
     } else {
-      // Web platform - use existing logic
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      
+      // Web platform - use existing logic      
       // Check if we're on Safari/iOS web
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -597,7 +614,7 @@ function App() {
                 : 'bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:opacity-50 text-white disabled:text-gray-400'
             }`}
           >
-            Save
+            Share
           </button>
         </div>
 
