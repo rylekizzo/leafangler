@@ -554,87 +554,6 @@ function App() {
           </button>
         </div>
 
-            {/* Bottom Navigation */}
-            <div className="flex justify-center">
-              <div className={`rounded-2xl p-2 ${isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'}`}>
-                <div className="flex items-center gap-4">
-                  {/* Measure Button */}
-                  <button
-                    onClick={() => setCurrentView('measure')}
-                    className={`p-3 rounded-xl transition-colors ${
-                      currentView === 'measure'
-                        ? isDarkMode 
-                          ? 'bg-green-600 text-white' 
-                          : 'bg-green-500 text-white'
-                        : isDarkMode
-                          ? 'text-gray-400 hover:text-white hover:bg-dark-700'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span 
-                      className="material-symbols-outlined"
-                      style={{
-                        fontSize: '24px',
-                        fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-                      }}
-                    >
-                      explore
-                    </span>
-                  </button>
-                  
-                  {/* Saved Button */}
-                  <button
-                    onClick={() => setCurrentView('saved')}
-                    className={`relative p-3 rounded-xl transition-colors ${
-                      (currentView as string) === 'saved'
-                        ? isDarkMode 
-                          ? 'bg-green-600 text-white' 
-                          : 'bg-green-500 text-white'
-                        : isDarkMode
-                          ? 'text-gray-400 hover:text-white hover:bg-dark-700'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span 
-                      className="material-symbols-outlined"
-                      style={{
-                        fontSize: '24px',
-                        fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-                      }}
-                    >
-                      folder
-                    </span>
-                    {savedDatasets.length > 0 && (
-                      <span className={`absolute -top-1 -right-1 w-5 h-5 text-xs rounded-full flex items-center justify-center ${
-                        isDarkMode ? 'bg-green-500 text-white' : 'bg-green-500 text-white'
-                      }`}>
-                        {savedDatasets.length > 9 ? '9+' : savedDatasets.length}
-                      </span>
-                    )}
-                  </button>
-                  
-                  {/* Settings Button */}
-                  <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className={`p-3 rounded-xl transition-colors ${
-                      isDarkMode 
-                        ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span 
-                      className="material-symbols-outlined"
-                      style={{
-                        fontSize: '24px',
-                        fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-                      }}
-                    >
-                      settings
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
           </>
         )}
 
@@ -767,6 +686,88 @@ function App() {
             )}
           </div>
         )}
+
+        {/* Bottom Navigation - Always Visible */}
+        <div className="flex justify-center mt-4">
+          <div className={`rounded-2xl p-2 ${isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'}`}>
+            <div className="flex items-center gap-4">
+              {/* Measure Button */}
+              <button
+                onClick={() => setCurrentView('measure')}
+                className={`p-3 rounded-xl transition-colors ${
+                  currentView === 'measure'
+                    ? isDarkMode 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-green-500 text-white'
+                    : isDarkMode
+                      ? 'text-gray-400 hover:text-white hover:bg-dark-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span 
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: '24px',
+                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                  }}
+                >
+                  explore
+                </span>
+              </button>
+              
+              {/* Saved Button */}
+              <button
+                onClick={() => setCurrentView('saved')}
+                className={`relative p-3 rounded-xl transition-colors ${
+                  (currentView as string) === 'saved'
+                    ? isDarkMode 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-green-500 text-white'
+                    : isDarkMode
+                      ? 'text-gray-400 hover:text-white hover:bg-dark-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span 
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: '24px',
+                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                  }}
+                >
+                  folder
+                </span>
+                {savedDatasets.length > 0 && (
+                  <span className={`absolute -top-1 -right-1 w-5 h-5 text-xs rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-green-500 text-white' : 'bg-green-500 text-white'
+                  }`}>
+                    {savedDatasets.length > 9 ? '9+' : savedDatasets.length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Settings Button */}
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-3 rounded-xl transition-colors ${
+                  isDarkMode 
+                    ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span 
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: '24px',
+                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                  }}
+                >
+                  settings
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
