@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { SensorService, Angles, Position, SurfaceNormal, LeafOrientation } from './services/sensorService';
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 
 interface Recording {
   timestamp: Date;
@@ -56,7 +54,6 @@ function App() {
     const saved = localStorage.getItem('leafangler-dark-mode');
     return saved !== null ? saved === 'true' : true;
   });
-  const [showSettings, setShowSettings] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{latitude: number; longitude: number; altitude: number | null} | null>(null);
@@ -81,7 +78,15 @@ function App() {
     }
     return [];
   });
-  const [currentView, setCurrentView] = useState<'measure' | 'saved'>('measure');
+  const [currentView, setCurrentView] = useState<'measure' | 'saved' | 'settings'>('measure');
+  const [showModal, setShowModal] = useState<{
+    type: 'prompt' | 'confirm' | 'alert';
+    title: string;
+    message: string;
+    defaultValue?: string;
+    onConfirm?: (value?: string) => void;
+    onCancel?: () => void;
+  } | null>(null);
   
   const sensorService = useRef<SensorService>(new SensorService());
   const unsubscribeAngles = useRef<(() => void) | null>(null);
@@ -192,11 +197,15 @@ function App() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (recordings.length === 0) return;
     
     // Prompt for dataset name
-    const datasetName = window.prompt('Enter a name for this dataset:', `Dataset ${new Date().toLocaleDateString()}`);
+    const datasetName = await showCustomPrompt(
+      'Save Dataset',
+      'Enter a name for this dataset:',
+      `Dataset ${new Date().toLocaleDateString()}`
+    );
     if (!datasetName || datasetName.trim() === '') return;
     
     // Create new dataset
@@ -215,7 +224,7 @@ function App() {
     setRecordings([]);
     
     // Show success message
-    alert(`Dataset "${datasetName}" saved with ${recordings.length} measurements!`);
+    await showCustomAlert('Success', `Dataset "${datasetName}" saved with ${recordings.length} measurements!`);
   };
 
   const formatTime = (date: Date) => {
@@ -224,6 +233,58 @@ function App() {
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit' 
+    });
+  };
+
+  // Custom modal helpers
+  const showCustomPrompt = (title: string, message: string, defaultValue = '') => {
+    return new Promise<string | null>((resolve) => {
+      setShowModal({
+        type: 'prompt',
+        title,
+        message,
+        defaultValue,
+        onConfirm: (value) => {
+          setShowModal(null);
+          resolve(value || null);
+        },
+        onCancel: () => {
+          setShowModal(null);
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  const showCustomConfirm = (title: string, message: string) => {
+    return new Promise<boolean>((resolve) => {
+      setShowModal({
+        type: 'confirm',
+        title,
+        message,
+        onConfirm: () => {
+          setShowModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setShowModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
+
+  const showCustomAlert = (title: string, message: string) => {
+    return new Promise<void>((resolve) => {
+      setShowModal({
+        type: 'alert',
+        title,
+        message,
+        onConfirm: () => {
+          setShowModal(null);
+          resolve();
+        }
+      });
     });
   };
 
@@ -309,87 +370,13 @@ function App() {
 
   // Main app after permissions granted
   return (
-    <div className={`min-h-screen p-3 sm:p-4 transition-colors ${
+    <div className={`min-h-screen transition-colors ${
       isDarkMode 
         ? 'bg-dark-900 text-white' 
         : 'bg-gray-50 text-gray-900'
     }`}>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-16 pb-8">
         
-        {/* Settings Panel - Floating Window */}
-        {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className={`relative w-full max-w-sm rounded-2xl p-6 transition-colors ${
-              isDarkMode ? 'bg-dark-800' : 'bg-white shadow-xl'
-            }`}>
-              {/* Close button */}
-              <button
-                onClick={() => setShowSettings(false)}
-                className={`absolute top-4 right-4 p-1 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'hover:bg-dark-700 text-gray-400 hover:text-white' 
-                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              <h3 className={`text-lg font-semibold mb-6 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                Settings
-              </h3>
-              
-              <div className="flex items-center justify-between mb-6">
-                <span className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Mode
-                </span>
-                <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${
-                    isDarkMode ? 'bg-green-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-transform flex items-center justify-center ${
-                    isDarkMode ? 'translate-x-7' : 'translate-x-0.5'
-                  }`}>
-                    {isDarkMode ? (
-                      <svg className="w-3 h-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
-                      </svg>
-                    ) : (
-                      <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"></path>
-                      </svg>
-                    )}
-                  </div>
-                </button>
-              </div>
-              
-              {/* Clear Data Button */}
-              <div className={`pt-6 border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
-                <button
-                  onClick={() => {
-                    if (window.confirm('This will clear all recorded measurements. Are you sure?')) {
-                      setRecordings([]);
-                      localStorage.removeItem('leafangler-recordings');
-                    }
-                  }}
-                  disabled={recordings.length === 0}
-                  className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isDarkMode 
-                      ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400 disabled:opacity-50 disabled:cursor-not-allowed' 
-                      : 'bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed'
-                  }`}
-                >
-                  Clear All Recordings ({recordings.length})
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         
         {/* Measure View */}
         {currentView === 'measure' && (
@@ -459,13 +446,61 @@ function App() {
           </div>
         </div>
 
-        {/* Record Button */}
-        <div className="flex justify-center mb-4">
+        {/* Navigation and Record Button */}
+        <div className="flex items-center justify-center gap-6 mb-4">
+          {/* Saved Button */}
+          <button
+            onClick={() => setCurrentView('saved')}
+            className={`relative p-4 rounded-2xl transition-colors ${
+              isDarkMode 
+                ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <span 
+              className="material-symbols-outlined"
+              style={{
+                fontSize: '32px',
+                fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}
+            >
+              folder
+            </span>
+            {savedDatasets.length > 0 && (
+              <span className={`absolute -top-1 -right-1 w-6 h-6 text-xs rounded-full flex items-center justify-center ${
+                isDarkMode ? 'bg-green-500 text-white' : 'bg-green-500 text-white'
+              }`}>
+                {savedDatasets.length > 9 ? '9+' : savedDatasets.length}
+              </span>
+            )}
+          </button>
+
+          {/* Record Button */}
           <button
             onClick={handleRecord}
-            className="bg-red-600 hover:bg-red-700 text-white px-16 sm:px-24 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-white px-12 sm:px-16 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-colors"
           >
             Record
+          </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={() => setCurrentView('settings')}
+            className={`p-4 rounded-2xl transition-colors ${
+              isDarkMode 
+                ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <span 
+              className="material-symbols-outlined"
+              style={{
+                fontSize: '32px',
+                fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}
+            >
+              settings
+            </span>
           </button>
         </div>
 
@@ -473,7 +508,7 @@ function App() {
         <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
           isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
         }`}>
-          <div className="h-80 overflow-x-auto overflow-y-auto">
+          <div className="h-52 overflow-x-auto overflow-y-auto">
             <table className="w-full">
               <thead className={`sticky top-0 ${isDarkMode ? 'bg-dark-800' : 'bg-white'}`}>
                 <tr className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -562,9 +597,29 @@ function App() {
           <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
             isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
           }`}>
-            <h2 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Saved Datasets
-            </h2>
+            <div className="flex items-center mb-4">
+              <button
+                onClick={() => setCurrentView('measure')}
+                className={`p-2 rounded-lg mr-3 transition-colors ${
+                  isDarkMode 
+                    ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span 
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: '24px',
+                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                  }}
+                >
+                  arrow_back
+                </span>
+              </button>
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Saved Datasets
+              </h2>
+            </div>
             
             {savedDatasets.length === 0 ? (
               <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -661,8 +716,12 @@ function App() {
                           Export
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Delete dataset "${dataset.name}"?`)) {
+                          onClick={async () => {
+                            const confirmed = await showCustomConfirm(
+                              'Delete Dataset',
+                              `Are you sure you want to delete "${dataset.name}"? This action cannot be undone.`
+                            );
+                            if (confirmed) {
                               setSavedDatasets(prev => prev.filter(d => d.id !== dataset.id));
                             }
                           }}
@@ -687,69 +746,15 @@ function App() {
           </div>
         )}
 
-        {/* Bottom Navigation - Always Visible */}
-        <div className="flex justify-center mt-4">
-          <div className={`rounded-2xl p-2 ${isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'}`}>
-            <div className="flex items-center gap-4">
-              {/* Measure Button */}
+        {/* Settings View */}
+        {currentView === 'settings' && (
+          <div className={`rounded-2xl p-4 sm:p-6 mb-4 transition-colors ${
+            isDarkMode ? 'bg-dark-800' : 'bg-white shadow-lg'
+          }`}>
+            <div className="flex items-center mb-6">
               <button
                 onClick={() => setCurrentView('measure')}
-                className={`p-3 rounded-xl transition-colors ${
-                  currentView === 'measure'
-                    ? isDarkMode 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-green-500 text-white'
-                    : isDarkMode
-                      ? 'text-gray-400 hover:text-white hover:bg-dark-700'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span 
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: '24px',
-                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-                  }}
-                >
-                  explore
-                </span>
-              </button>
-              
-              {/* Saved Button */}
-              <button
-                onClick={() => setCurrentView('saved')}
-                className={`relative p-3 rounded-xl transition-colors ${
-                  (currentView as string) === 'saved'
-                    ? isDarkMode 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-green-500 text-white'
-                    : isDarkMode
-                      ? 'text-gray-400 hover:text-white hover:bg-dark-700'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span 
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: '24px',
-                    fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-                  }}
-                >
-                  folder
-                </span>
-                {savedDatasets.length > 0 && (
-                  <span className={`absolute -top-1 -right-1 w-5 h-5 text-xs rounded-full flex items-center justify-center ${
-                    isDarkMode ? 'bg-green-500 text-white' : 'bg-green-500 text-white'
-                  }`}>
-                    {savedDatasets.length > 9 ? '9+' : savedDatasets.length}
-                  </span>
-                )}
-              </button>
-              
-              {/* Settings Button */}
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`p-3 rounded-xl transition-colors ${
+                className={`p-2 rounded-lg mr-3 transition-colors ${
                   isDarkMode 
                     ? 'text-gray-400 hover:text-white hover:bg-dark-700' 
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -762,13 +767,183 @@ function App() {
                     fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
                   }}
                 >
-                  settings
+                  arrow_back
                 </span>
+              </button>
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Settings
+              </h2>
+            </div>
+            
+            {/* Theme Toggle */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Appearance
+                </h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Choose between light and dark mode
+                </p>
+              </div>
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className={`relative w-14 h-7 rounded-full transition-colors ${
+                  isDarkMode ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-transform flex items-center justify-center ${
+                  isDarkMode ? 'translate-x-7' : 'translate-x-0.5'
+                }`}>
+                  {isDarkMode ? (
+                    <svg className="w-3 h-3 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"></path>
+                    </svg>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Data Management */}
+            <div className={`pt-6 border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
+              <h3 className={`font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Data Management
+              </h3>
+              <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Manage your saved measurements and app data
+              </p>
+              
+              {/* Clear Current Session */}
+              <button
+                onClick={async () => {
+                  const confirmed = await showCustomConfirm(
+                    'Clear Session',
+                    'Clear current measurements? (Saved datasets will not be affected)'
+                  );
+                  if (confirmed) {
+                    setRecordings([]);
+                  }
+                }}
+                disabled={recordings.length === 0}
+                className={`w-full mb-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDarkMode 
+                    ? 'bg-orange-900/20 hover:bg-orange-900/30 text-orange-400 disabled:opacity-50 disabled:cursor-not-allowed' 
+                    : 'bg-orange-50 hover:bg-orange-100 text-orange-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                Clear Current Session ({recordings.length} measurements)
+              </button>
+              
+              {/* Clear All Data */}
+              <button
+                onClick={async () => {
+                  const confirmed = await showCustomConfirm(
+                    'Clear All Data',
+                    'This will permanently delete ALL saved datasets and current measurements. This cannot be undone. Are you sure?'
+                  );
+                  if (confirmed) {
+                    setRecordings([]);
+                    setSavedDatasets([]);
+                    localStorage.removeItem('leafangler-recordings');
+                    localStorage.removeItem('leafangler-datasets');
+                    await showCustomAlert('Success', 'All data cleared successfully.');
+                  }
+                }}
+                disabled={recordings.length === 0 && savedDatasets.length === 0}
+                className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDarkMode 
+                    ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400 disabled:opacity-50 disabled:cursor-not-allowed' 
+                    : 'bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                Clear All Data ({savedDatasets.length} datasets + {recordings.length} current)
+              </button>
+            </div>
+
+            {/* App Info */}
+            <div className={`pt-6 mt-6 border-t ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
+              <h3 className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                About LeafAngler
+              </h3>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Measure leaf angles using your device's motion sensors. Track pitch, roll, yaw, and GPS coordinates for botanical research.
+              </p>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Custom Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+          <div className={`w-full max-w-md rounded-2xl p-6 ${
+            isDarkMode ? 'bg-dark-800' : 'bg-white'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-3 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {showModal.title}
+            </h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              {showModal.message}
+            </p>
+            
+            {showModal.type === 'prompt' && (
+              <input
+                type="text"
+                defaultValue={showModal.defaultValue}
+                className={`w-full px-3 py-2 mb-6 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                  isDarkMode 
+                    ? 'bg-dark-700 border-dark-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    showModal.onConfirm?.((e.target as HTMLInputElement).value);
+                  } else if (e.key === 'Escape') {
+                    showModal.onCancel?.();
+                  }
+                }}
+              />
+            )}
+            
+            <div className="flex gap-3 justify-end">
+              {(showModal.type === 'confirm' || showModal.type === 'prompt') && (
+                <button
+                  onClick={showModal.onCancel}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isDarkMode 
+                      ? 'bg-dark-700 hover:bg-dark-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (showModal.type === 'prompt') {
+                    const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+                    showModal.onConfirm?.(input?.value || '');
+                  } else {
+                    showModal.onConfirm?.();
+                  }
+                }}
+                className="px-4 py-2 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
+              >
+                {showModal.type === 'alert' ? 'OK' : 'Confirm'}
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
