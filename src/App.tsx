@@ -408,7 +408,7 @@ function App() {
           {/* Second row: Leaf orientation */}
           <div className={`grid grid-cols-2 gap-4 sm:gap-6 text-center pb-4 border-b ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
             <div>
-              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Zenith</div>
+              <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Inclination</div>
               <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.zenith.toFixed(2)}°</div>
             </div>
             <div>
@@ -515,7 +515,7 @@ function App() {
                   <th className="text-center py-2 px-1">Obs</th>
                   <th className="text-left py-2 px-1">Time</th>
                   <th className="text-left py-2 px-1">Tag</th>
-                  <th className="text-right py-2 px-1">Zenith</th>
+                  <th className="text-right py-2 px-1">Inclination</th>
                   <th className="text-right py-2 px-1">Azimuth</th>
                   <th className="text-right py-2 px-1 hidden sm:table-cell">Pitch</th>
                   <th className="text-right py-2 px-1 hidden sm:table-cell">Roll</th>
@@ -643,7 +643,7 @@ function App() {
                         <button
                           onClick={() => {
                             // Export dataset as CSV
-                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Zenith', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
                             const csvRows = [
                               headers.join(','),
                               ...dataset.recordings.map((r, index) => {
