@@ -34,7 +34,7 @@ function App() {
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
   const [orientation, setOrientation] = useState<LeafOrientation>({ inclination: 0, azimuth: 0 });
   const [normal, setNormal] = useState<SurfaceNormal>({ x: 0, y: 0, z: 1 });
-  const [heading, setHeading] = useState<Heading>({ degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null });
+  const [heading, setHeading] = useState<Heading>({ degrees: 0, accuracy: null, source: 'relative', trueNorth: null, calibrationAgeSec: null });
   const [rawYaw, setRawYaw] = useState(0);
   const [recordings, setRecordings] = useState<Recording[]>(() => {
     // Load recordings from localStorage on initial mount
@@ -439,7 +439,8 @@ function App() {
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Azimuth</div>
               <div className={`text-lg sm:text-2xl font-mono leading-tight ${
                 heading.source === 'relative' ? 'text-red-500'
-                  : heading.source === 'manual' ? 'text-amber-500' : 'text-green-500'
+                  : heading.source === 'manual' || heading.trueNorth === false
+                    ? 'text-amber-500' : 'text-green-500'
               }`}>{orientation.azimuth.toFixed(2)}°</div>
               {heading.source === 'relative' && (
                 <>
@@ -472,10 +473,11 @@ function App() {
                   </button>
                 </>
               )}
-              {(heading.source === 'compass' || heading.source === 'absolute') && (
+              {(heading.source === 'native' || heading.source === 'compass' || heading.source === 'absolute') && (
                 <div className={`text-[10px] sm:text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   heading {heading.degrees.toFixed(0)}°
                   {heading.accuracy != null ? ` ±${heading.accuracy.toFixed(0)}°` : ''}
+                  {heading.trueNorth === false ? ' (magnetic)' : ''}
                 </div>
               )}
             </div>
@@ -707,7 +709,7 @@ function App() {
                         <button
                           onClick={() => {
                             // Export dataset as CSV
-                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Compass_Heading', 'Heading_Accuracy', 'Heading_Source', 'Heading_Cal_Age_s', 'Yaw_Raw_Alpha', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Compass_Heading', 'Heading_Accuracy', 'Heading_Source', 'Heading_True_North', 'Heading_Cal_Age_s', 'Yaw_Raw_Alpha', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
                             const csvRows = [
                               headers.join(','),
                               ...dataset.recordings.map((r, index) => {
@@ -740,6 +742,7 @@ function App() {
                                   r.heading ? r.heading.degrees.toFixed(2) : '',
                                   r.heading?.accuracy != null ? r.heading.accuracy.toFixed(1) : '',
                                   r.heading ? r.heading.source : 'relative',
+                                  r.heading?.trueNorth != null ? String(r.heading.trueNorth) : '',
                                   r.heading?.calibrationAgeSec != null ? String(r.heading.calibrationAgeSec) : '',
                                   r.rawYaw != null ? r.rawYaw.toFixed(2) : '',
                                   r.position.x.toFixed(3),

@@ -1,3 +1,7 @@
+import { Capacitor } from '@capacitor/core';
+import { Compass } from './nativeCompass';
+import type { PluginListenerHandle } from '@capacitor/core';
+
 export interface Angles {
   pitch: number; // X-axis rotation (beta)
   roll: number;  // Y-axis rotation (gamma)
@@ -30,7 +34,9 @@ export interface CalibrationOffsets {
 }
 
 // Compass heading of the top of the device, degrees clockwise from north.
-// source tells you whether the azimuth is referenced to the world:
+// source tells you whether the azimuth is referenced to the world, best first:
+//   'native'   - CoreLocation CLHeading via the Compass plugin. Preferred:
+//                declination-corrected true north, with a real accuracy figure.
 //   'compass'  - iOS webkitCompassHeading, referenced to true north
 //   'absolute' - deviceorientationabsolute (Android), referenced to north
 //   'manual'   - no compass available, so the operator pointed the top of the
@@ -42,7 +48,10 @@ export interface CalibrationOffsets {
 export interface Heading {
   degrees: number;
   accuracy: number | null;   // +/- degrees, null when unknown
-  source: 'compass' | 'absolute' | 'manual' | 'relative';
+  source: 'native' | 'compass' | 'absolute' | 'manual' | 'relative';
+  // false when only a magnetic bearing was available (no declination
+  // correction); null when the source does not distinguish.
+  trueNorth: boolean | null;
   // seconds since the manual calibration, so drift is auditable. null unless
   // source is 'manual'.
   calibrationAgeSec: number | null;
@@ -56,12 +65,13 @@ export class SensorService {
   private position: Position = { x: 0, y: 0, z: 0 };
   private calibrationOffsets: CalibrationOffsets = { pitch: 0, roll: 0, yaw: 0 };
   private rawAngles: Angles = { pitch: 0, roll: 0, yaw: 0 };
-  private heading: Heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
+  private heading: Heading = { degrees: 0, accuracy: null, source: 'relative', trueNorth: null, calibrationAgeSec: null };
   // alpha reading captured while the top of the device pointed due north.
   // Deliberately NOT persisted: alpha's origin is reassigned every time the
   // sensor starts, so a stored offset would be silently wrong on next launch.
   private manualNorthAlpha: number | null = null;
   private manualNorthAt: number = 0;
+  private nativeHeadingListener: PluginListenerHandle | null = null;
   private subscribers: Set<AngleSubscriber> = new Set();
   private positionSubscribers: Set<PositionSubscriber> = new Set();
   private isListening: boolean = false;
@@ -99,12 +109,68 @@ export class SensorService {
     return { ...this.heading };
   }
 
+  private static rank(source: Heading['source']): number {
+    switch (source) {
+      case 'native':   return 4;
+      case 'compass':  return 3;
+      case 'absolute': return 2;
+      case 'manual':   return 1;
+      default:         return 0;
+    }
+  }
+
+  // Accept an update only from a source at least as good as the current one, so
+  // e.g. a webkitCompassHeading cannot overwrite a CoreLocation fix.
+  private offerHeading(next: Heading): void {
+    if (SensorService.rank(next.source) < SensorService.rank(this.heading.source)) return;
+    this.heading = next;
+  }
+
+  private async startNativeCompass(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const { available } = await Compass.isAvailable();
+      if (!available) return;
+
+      this.nativeHeadingListener = await Compass.addListener('heading', (event) => {
+        // CoreLocation reports a negative accuracy while the reading is
+        // untrustworthy (magnetometer needs the figure-8 calibration wave)
+        if (event.accuracy < 0) return;
+        this.offerHeading({
+          degrees: event.degrees,
+          accuracy: event.accuracy,
+          source: 'native',
+          trueNorth: event.trueNorth,
+          calibrationAgeSec: null
+        });
+        this.notifySubscribers();
+      });
+
+      await Compass.start();
+    } catch (error) {
+      // no native implementation on this platform -- the web path still applies
+      console.warn('Native compass unavailable, falling back to web sensors:', error);
+    }
+  }
+
+  private async stopNativeCompass(): Promise<void> {
+    try {
+      if (this.nativeHeadingListener) {
+        await this.nativeHeadingListener.remove();
+        this.nativeHeadingListener = null;
+      }
+      if (Capacitor.isNativePlatform()) await Compass.stop();
+    } catch {
+      // nothing listening; nothing to unwind
+    }
+  }
+
   // Operator points the top of the device due north and calls this. alpha and
   // true heading run in opposite directions but differ by a constant, so one
   // sighting pins the offset: at north, heading 0 corresponds to the alpha
   // read right now.
   calibrateNorth(): boolean {
-    if (this.heading.source === 'compass' || this.heading.source === 'absolute') {
+    if (SensorService.rank(this.heading.source) > SensorService.rank('manual')) {
       // a real compass fix is already better than a hand sighting
       return false;
     }
@@ -118,7 +184,7 @@ export class SensorService {
   clearNorthCalibration(): void {
     this.manualNorthAlpha = null;
     this.manualNorthAt = 0;
-    this.heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
+    this.heading = { degrees: 0, accuracy: null, source: 'relative', trueNorth: null, calibrationAgeSec: null };
     this.notifySubscribers();
   }
 
@@ -133,6 +199,8 @@ export class SensorService {
       degrees: ((360 - delta) % 360 + 360) % 360,
       accuracy: null,
       source: 'manual',
+      // only as good as the operator's sighting of north
+      trueNorth: true,
       calibrationAgeSec: Math.round((Date.now() - this.manualNorthAt) / 1000)
     };
   }
@@ -302,6 +370,10 @@ export class SensorService {
       await this.requestPermissions(); // Will throw if denied
     }
     
+    // Prefer CoreLocation's true-north heading; the web listeners below stay
+    // active regardless, since beta/gamma come from them either way.
+    await this.startNativeCompass();
+
     // Start device orientation and motion listeners
     window.addEventListener('deviceorientation', this.handleDeviceOrientation);
     window.addEventListener('deviceorientationabsolute' as any, this.handleAbsoluteOrientation);
@@ -336,11 +408,13 @@ export class SensorService {
       this.watchId = null;
     }
     
+    void this.stopNativeCompass();
+
     this.isListening = false;
     // alpha's origin dies with the session, so the offset must not survive it
     this.manualNorthAlpha = null;
     this.manualNorthAt = 0;
-    this.heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
+    this.heading = { degrees: 0, accuracy: null, source: 'relative', trueNorth: null, calibrationAgeSec: null };
   }
   
   getGPSCoordinates(): { latitude: number; longitude: number; altitude: number | null } | null {
@@ -368,13 +442,14 @@ export class SensorService {
     const compass = (event as any).webkitCompassHeading;
     if (typeof compass === 'number' && !Number.isNaN(compass)) {
       const acc = (event as any).webkitCompassAccuracy;
-      this.heading = {
+      this.offerHeading({
         degrees: compass,
         // iOS reports a negative accuracy when the compass is uncalibrated
         accuracy: typeof acc === 'number' && acc >= 0 ? acc : null,
         source: 'compass',
+        trueNorth: true,
         calibrationAgeSec: null
-      };
+      });
     }
 
     if (event.beta !== null && event.gamma !== null && event.alpha !== null) {
@@ -384,7 +459,7 @@ export class SensorService {
         yaw: event.alpha
       };
       // a real compass fix always wins over a hand sighting
-      if (this.heading.source !== 'compass' && this.heading.source !== 'absolute') {
+      if (SensorService.rank(this.heading.source) <= SensorService.rank('manual')) {
         this.applyManualHeading();
       }
       this.updateAngles();
@@ -397,12 +472,13 @@ export class SensorService {
     const event = rawEvent as DeviceOrientationEvent;
     if (this.heading.source === 'compass') return;
     if (event.alpha === null || !event.absolute) return;
-    this.heading = {
+    this.offerHeading({
       degrees: ((360 - event.alpha) % 360 + 360) % 360,
       accuracy: null,
       source: 'absolute',
+      trueNorth: true,
       calibrationAgeSec: null
-    };
+    });
   }
 
   private handleGeolocation(position: GeolocationPosition): void {
