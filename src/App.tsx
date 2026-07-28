@@ -23,12 +23,18 @@ interface SavedDataset {
   recordingCount: number;
 }
 
+function formatAge(sec: number | null): string {
+  if (sec == null) return '';
+  if (sec < 60) return `${sec}s ago`;
+  return `${Math.round(sec / 60)} min ago`;
+}
+
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
   const [orientation, setOrientation] = useState<LeafOrientation>({ inclination: 0, azimuth: 0 });
   const [normal, setNormal] = useState<SurfaceNormal>({ x: 0, y: 0, z: 1 });
-  const [heading, setHeading] = useState<Heading>({ degrees: 0, accuracy: null, source: 'relative' });
+  const [heading, setHeading] = useState<Heading>({ degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null });
   const [rawYaw, setRawYaw] = useState(0);
   const [recordings, setRecordings] = useState<Recording[]>(() => {
     // Load recordings from localStorage on initial mount
@@ -198,6 +204,12 @@ function App() {
       rawYaw,
       tag: currentTag.trim() || 'Default' 
     }]);
+  };
+
+  const handleSetNorth = () => {
+    const ok = sensorService.current.calibrateNorth();
+    if (!ok) return;
+    setHeading(sensorService.current.getHeading());
   };
 
   const handleUndo = () => {
@@ -426,13 +438,41 @@ function App() {
             <div>
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Azimuth</div>
               <div className={`text-lg sm:text-2xl font-mono leading-tight ${
-                heading.source === 'relative' ? 'text-red-500' : 'text-green-500'
+                heading.source === 'relative' ? 'text-red-500'
+                  : heading.source === 'manual' ? 'text-amber-500' : 'text-green-500'
               }`}>{orientation.azimuth.toFixed(2)}°</div>
-              {heading.source === 'relative' ? (
-                <div className="text-[10px] sm:text-xs mt-0.5 text-red-500">
-                  no compass &mdash; not referenced to north
-                </div>
-              ) : (
+              {heading.source === 'relative' && (
+                <>
+                  <div className="text-[10px] sm:text-xs mt-0.5 text-red-500">
+                    no compass &mdash; not referenced to north
+                  </div>
+                  <button
+                    onClick={handleSetNorth}
+                    className="mt-1 px-2 py-1 text-[10px] sm:text-xs rounded bg-amber-600 hover:bg-amber-500 text-white"
+                  >
+                    Point top north, then tap
+                  </button>
+                </>
+              )}
+              {heading.source === 'manual' && (
+                <>
+                  {/* alpha drifts, so an old sighting is not as good as a fresh
+                      one -- show the age and go amber once it is stale */}
+                  <div className={`text-[10px] sm:text-xs mt-0.5 ${
+                    (heading.calibrationAgeSec ?? 0) > 600 ? 'text-amber-500' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')
+                  }`}>
+                    north set by hand {formatAge(heading.calibrationAgeSec)}
+                    {(heading.calibrationAgeSec ?? 0) > 600 ? ' \u2014 re-set it' : ''}
+                  </div>
+                  <button
+                    onClick={handleSetNorth}
+                    className="mt-1 px-2 py-1 text-[10px] sm:text-xs rounded bg-amber-600 hover:bg-amber-500 text-white"
+                  >
+                    Re-set north
+                  </button>
+                </>
+              )}
+              {(heading.source === 'compass' || heading.source === 'absolute') && (
                 <div className={`text-[10px] sm:text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   heading {heading.degrees.toFixed(0)}°
                   {heading.accuracy != null ? ` ±${heading.accuracy.toFixed(0)}°` : ''}
@@ -667,7 +707,7 @@ function App() {
                         <button
                           onClick={() => {
                             // Export dataset as CSV
-                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Compass_Heading', 'Heading_Accuracy', 'Heading_Source', 'Yaw_Raw_Alpha', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Compass_Heading', 'Heading_Accuracy', 'Heading_Source', 'Heading_Cal_Age_s', 'Yaw_Raw_Alpha', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
                             const csvRows = [
                               headers.join(','),
                               ...dataset.recordings.map((r, index) => {
@@ -700,6 +740,7 @@ function App() {
                                   r.heading ? r.heading.degrees.toFixed(2) : '',
                                   r.heading?.accuracy != null ? r.heading.accuracy.toFixed(1) : '',
                                   r.heading ? r.heading.source : 'relative',
+                                  r.heading?.calibrationAgeSec != null ? String(r.heading.calibrationAgeSec) : '',
                                   r.rawYaw != null ? r.rawYaw.toFixed(2) : '',
                                   r.position.x.toFixed(3),
                                   r.position.y.toFixed(3),

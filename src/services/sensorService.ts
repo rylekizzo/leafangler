@@ -33,13 +33,19 @@ export interface CalibrationOffsets {
 // source tells you whether the azimuth is referenced to the world:
 //   'compass'  - iOS webkitCompassHeading, referenced to true north
 //   'absolute' - deviceorientationabsolute (Android), referenced to north
+//   'manual'   - no compass available, so the operator pointed the top of the
+//                device due north and we pinned alpha's offset to that. Only
+//                as good as the aim, and it decays as alpha drifts.
 //   'relative' - plain deviceorientation alpha, whose zero point is fixed
 //                arbitrarily when the sensor starts and is free to drift.
 //                Azimuth built on this is NOT comparable between sessions.
 export interface Heading {
   degrees: number;
   accuracy: number | null;   // +/- degrees, null when unknown
-  source: 'compass' | 'absolute' | 'relative';
+  source: 'compass' | 'absolute' | 'manual' | 'relative';
+  // seconds since the manual calibration, so drift is auditable. null unless
+  // source is 'manual'.
+  calibrationAgeSec: number | null;
 }
 
 type AngleSubscriber = (angles: Angles) => void;
@@ -50,7 +56,12 @@ export class SensorService {
   private position: Position = { x: 0, y: 0, z: 0 };
   private calibrationOffsets: CalibrationOffsets = { pitch: 0, roll: 0, yaw: 0 };
   private rawAngles: Angles = { pitch: 0, roll: 0, yaw: 0 };
-  private heading: Heading = { degrees: 0, accuracy: null, source: 'relative' };
+  private heading: Heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
+  // alpha reading captured while the top of the device pointed due north.
+  // Deliberately NOT persisted: alpha's origin is reassigned every time the
+  // sensor starts, so a stored offset would be silently wrong on next launch.
+  private manualNorthAlpha: number | null = null;
+  private manualNorthAt: number = 0;
   private subscribers: Set<AngleSubscriber> = new Set();
   private positionSubscribers: Set<PositionSubscriber> = new Set();
   private isListening: boolean = false;
@@ -86,6 +97,44 @@ export class SensorService {
 
   getHeading(): Heading {
     return { ...this.heading };
+  }
+
+  // Operator points the top of the device due north and calls this. alpha and
+  // true heading run in opposite directions but differ by a constant, so one
+  // sighting pins the offset: at north, heading 0 corresponds to the alpha
+  // read right now.
+  calibrateNorth(): boolean {
+    if (this.heading.source === 'compass' || this.heading.source === 'absolute') {
+      // a real compass fix is already better than a hand sighting
+      return false;
+    }
+    this.manualNorthAlpha = this.rawAngles.yaw;
+    this.manualNorthAt = Date.now();
+    this.applyManualHeading();
+    this.notifySubscribers();
+    return true;
+  }
+
+  clearNorthCalibration(): void {
+    this.manualNorthAlpha = null;
+    this.manualNorthAt = 0;
+    this.heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
+    this.notifySubscribers();
+  }
+
+  hasNorthReference(): boolean {
+    return this.heading.source !== 'relative';
+  }
+
+  private applyManualHeading(): void {
+    if (this.manualNorthAlpha === null) return;
+    const delta = this.rawAngles.yaw - this.manualNorthAlpha;
+    this.heading = {
+      degrees: ((360 - delta) % 360 + 360) % 360,
+      accuracy: null,
+      source: 'manual',
+      calibrationAgeSec: Math.round((Date.now() - this.manualNorthAt) / 1000)
+    };
   }
 
   // Pitch and roll come from beta/gamma, which are derived from the gravity
@@ -288,6 +337,10 @@ export class SensorService {
     }
     
     this.isListening = false;
+    // alpha's origin dies with the session, so the offset must not survive it
+    this.manualNorthAlpha = null;
+    this.manualNorthAt = 0;
+    this.heading = { degrees: 0, accuracy: null, source: 'relative', calibrationAgeSec: null };
   }
   
   getGPSCoordinates(): { latitude: number; longitude: number; altitude: number | null } | null {
@@ -319,7 +372,8 @@ export class SensorService {
         degrees: compass,
         // iOS reports a negative accuracy when the compass is uncalibrated
         accuracy: typeof acc === 'number' && acc >= 0 ? acc : null,
-        source: 'compass'
+        source: 'compass',
+        calibrationAgeSec: null
       };
     }
 
@@ -329,6 +383,10 @@ export class SensorService {
         roll: event.gamma,
         yaw: event.alpha
       };
+      // a real compass fix always wins over a hand sighting
+      if (this.heading.source !== 'compass' && this.heading.source !== 'absolute') {
+        this.applyManualHeading();
+      }
       this.updateAngles();
     }
   }
@@ -342,7 +400,8 @@ export class SensorService {
     this.heading = {
       degrees: ((360 - event.alpha) % 360 + 360) % 360,
       accuracy: null,
-      source: 'absolute'
+      source: 'absolute',
+      calibrationAgeSec: null
     };
   }
 
