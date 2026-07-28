@@ -260,8 +260,22 @@ export class SensorService {
     return normal;
   }
 
+  // Flip a downward-pointing normal to the upper hemisphere. A plane has two
+  // normals; this picks the up-facing one so that every reported angle refers
+  // to the same face of the leaf.
+  static upperHemisphere(normal: SurfaceNormal): SurfaceNormal {
+    if (normal.z >= 0) return { ...normal };
+    return { x: -normal.x, y: -normal.y, z: -normal.z };
+  }
+
   // Calculate leaf inclination and azimuth from surface normal
-  calculateLeafOrientation(normal: SurfaceNormal): LeafOrientation {
+  calculateLeafOrientation(rawNormal: SurfaceNormal): LeafOrientation {
+    // Inclination took Math.abs(z), which silently describes the up-facing
+    // side, while azimuth used the raw normal. For a device lying face-down
+    // the two then referred to opposite faces and the azimuth came out 180°
+    // reversed. Fold once, up front, so both angles agree.
+    const normal = SensorService.upperHemisphere(rawNormal);
+
     // Inclination angle: angle from vertical (z-axis)
     // For leaves: 0° = horizontal (normal pointing up), 90° = vertical
     const inclination = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
@@ -293,7 +307,8 @@ export class SensorService {
     // azimuth is what depends on yaw, so the normal is built from the absolute
     // angles rather than the raw alpha.
     const angles = this.getAbsoluteAngles();
-    const normal = this.calculateSurfaceNormal(angles);
+    // same convention as the angles below, so Normal_Z is never negative
+    const normal = SensorService.upperHemisphere(this.calculateSurfaceNormal(angles));
     const orientation = this.calculateLeafOrientation(normal);
 
     return {
