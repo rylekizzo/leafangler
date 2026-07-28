@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { SensorService, Angles, Position, SurfaceNormal, LeafOrientation } from './services/sensorService';
+import { SensorService, Angles, Position, SurfaceNormal, LeafOrientation, Heading } from './services/sensorService';
 import { Capacitor } from '@capacitor/core';
 
 interface Recording {
@@ -10,6 +10,8 @@ interface Recording {
   normal: SurfaceNormal;
   orientation: LeafOrientation;
   gps: { latitude: number; longitude: number; altitude: number | null } | null;
+  heading: Heading;
+  rawYaw: number;   // uncorrected alpha, kept so exports stay auditable
   tag: string;
 }
 
@@ -24,8 +26,10 @@ interface SavedDataset {
 function App() {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [position, setPosition] = useState<Position>({ x: 0, y: 0, z: 0 });
-  const [orientation, setOrientation] = useState<LeafOrientation>({ zenith: 0, azimuth: 0 });
+  const [orientation, setOrientation] = useState<LeafOrientation>({ inclination: 0, azimuth: 0 });
   const [normal, setNormal] = useState<SurfaceNormal>({ x: 0, y: 0, z: 1 });
+  const [heading, setHeading] = useState<Heading>({ degrees: 0, accuracy: null, source: 'relative' });
+  const [rawYaw, setRawYaw] = useState(0);
   const [recordings, setRecordings] = useState<Recording[]>(() => {
     // Load recordings from localStorage on initial mount
     const saved = localStorage.getItem('leafangler-recordings');
@@ -99,12 +103,14 @@ function App() {
     setPermissionsGranted(true);
     
     unsubscribeAngles.current = sensorService.current.subscribe((newAngles) => {
-      setAngles(newAngles);
-      // Calculate orientation data when angles changes
-      const newNormal = sensorService.current.calculateSurfaceNormal(newAngles);
-      const newOrientation = sensorService.current.calculateLeafOrientation(newNormal);
-      setNormal(newNormal);
-      setOrientation(newOrientation);
+      // Go through getOrientationData so the azimuth is built from the compass
+      // heading rather than alpha, whose zero point is arbitrary.
+      const data = sensorService.current.getOrientationData();
+      setAngles(data.angles);
+      setRawYaw(newAngles.yaw);
+      setNormal(data.normal);
+      setOrientation(data.orientation);
+      setHeading(data.heading);
     });
     unsubscribePosition.current = sensorService.current.subscribePosition(setPosition);
     
@@ -188,6 +194,8 @@ function App() {
       normal,
       orientation,
       gps: gpsCoords,
+      heading,
+      rawYaw,
       tag: currentTag.trim() || 'Default' 
     }]);
   };
@@ -413,11 +421,23 @@ function App() {
           <div className={`grid grid-cols-2 gap-4 sm:gap-6 text-center pb-4 border-b ${isDarkMode ? 'border-dark-700' : 'border-gray-200'}`}>
             <div>
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Inclination</div>
-              <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.zenith.toFixed(2)}°</div>
+              <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.inclination.toFixed(2)}°</div>
             </div>
             <div>
               <div className={`text-xs sm:text-sm mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>Leaf Azimuth</div>
-              <div className="text-lg sm:text-2xl font-mono leading-tight text-green-500">{orientation.azimuth.toFixed(2)}°</div>
+              <div className={`text-lg sm:text-2xl font-mono leading-tight ${
+                heading.source === 'relative' ? 'text-red-500' : 'text-green-500'
+              }`}>{orientation.azimuth.toFixed(2)}°</div>
+              {heading.source === 'relative' ? (
+                <div className="text-[10px] sm:text-xs mt-0.5 text-red-500">
+                  no compass &mdash; not referenced to north
+                </div>
+              ) : (
+                <div className={`text-[10px] sm:text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  heading {heading.degrees.toFixed(0)}°
+                  {heading.accuracy != null ? ` ±${heading.accuracy.toFixed(0)}°` : ''}
+                </div>
+              )}
             </div>
           </div>
           
@@ -539,7 +559,7 @@ function App() {
                       {recording.tag}
                     </td>
                     <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm text-green-500">
-                      {recording.orientation.zenith.toFixed(2)}°
+                      {recording.orientation.inclination.toFixed(2)}°
                     </td>
                     <td className="py-2 sm:py-3 px-1 text-right font-mono text-xs sm:text-sm text-green-500">
                       {recording.orientation.azimuth.toFixed(2)}°
@@ -647,7 +667,7 @@ function App() {
                         <button
                           onClick={() => {
                             // Export dataset as CSV
-                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
+                            const headers = ['Obs', 'Timestamp', 'Year', 'Month', 'Day', 'Tag', 'Inclination', 'Azimuth', 'Latitude', 'Longitude', 'Altitude_m', 'Pitch', 'Roll', 'Yaw', 'Normal_X', 'Normal_Y', 'Normal_Z', 'Compass_Heading', 'Heading_Accuracy', 'Heading_Source', 'Yaw_Raw_Alpha', 'Accel_X_m', 'Accel_Y_m', 'Accel_Z_m'];
                             const csvRows = [
                               headers.join(','),
                               ...dataset.recordings.map((r, index) => {
@@ -666,7 +686,7 @@ function App() {
                                   r.timestamp.getMonth() + 1,
                                   r.timestamp.getDate(),
                                   r.tag,
-                                  r.orientation.zenith.toFixed(2),
+                                  r.orientation.inclination.toFixed(2),
                                   r.orientation.azimuth.toFixed(2),
                                   r.gps?.latitude?.toFixed(6) || '',
                                   r.gps?.longitude?.toFixed(6) || '',
@@ -677,6 +697,10 @@ function App() {
                                   r.normal.x.toFixed(4),
                                   r.normal.y.toFixed(4),
                                   r.normal.z.toFixed(4),
+                                  r.heading ? r.heading.degrees.toFixed(2) : '',
+                                  r.heading?.accuracy != null ? r.heading.accuracy.toFixed(1) : '',
+                                  r.heading ? r.heading.source : 'relative',
+                                  r.rawYaw != null ? r.rawYaw.toFixed(2) : '',
                                   r.position.x.toFixed(3),
                                   r.position.y.toFixed(3),
                                   r.position.z.toFixed(3)

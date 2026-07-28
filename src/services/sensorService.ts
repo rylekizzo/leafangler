@@ -19,7 +19,7 @@ export interface SurfaceNormal {
 }
 
 export interface LeafOrientation {
-  zenith: number;  // Angle from vertical (0-90°, 0° = horizontal leaf)
+  inclination: number;  // Angle from vertical (0-90°, 0° = horizontal leaf)
   azimuth: number; // Compass direction (0-360°, 0° = North)
 }
 
@@ -27,6 +27,19 @@ export interface CalibrationOffsets {
   pitch: number;
   roll: number;
   yaw: number;
+}
+
+// Compass heading of the top of the device, degrees clockwise from north.
+// source tells you whether the azimuth is referenced to the world:
+//   'compass'  - iOS webkitCompassHeading, referenced to true north
+//   'absolute' - deviceorientationabsolute (Android), referenced to north
+//   'relative' - plain deviceorientation alpha, whose zero point is fixed
+//                arbitrarily when the sensor starts and is free to drift.
+//                Azimuth built on this is NOT comparable between sessions.
+export interface Heading {
+  degrees: number;
+  accuracy: number | null;   // +/- degrees, null when unknown
+  source: 'compass' | 'absolute' | 'relative';
 }
 
 type AngleSubscriber = (angles: Angles) => void;
@@ -37,6 +50,7 @@ export class SensorService {
   private position: Position = { x: 0, y: 0, z: 0 };
   private calibrationOffsets: CalibrationOffsets = { pitch: 0, roll: 0, yaw: 0 };
   private rawAngles: Angles = { pitch: 0, roll: 0, yaw: 0 };
+  private heading: Heading = { degrees: 0, accuracy: null, source: 'relative' };
   private subscribers: Set<AngleSubscriber> = new Set();
   private positionSubscribers: Set<PositionSubscriber> = new Set();
   private isListening: boolean = false;
@@ -53,6 +67,7 @@ export class SensorService {
 
   constructor() {
     this.handleDeviceOrientation = this.handleDeviceOrientation.bind(this);
+    this.handleAbsoluteOrientation = this.handleAbsoluteOrientation.bind(this);
     this.handleDeviceMotion = this.handleDeviceMotion.bind(this);
     this.handleGeolocation = this.handleGeolocation.bind(this);
   }
@@ -69,6 +84,25 @@ export class SensorService {
     return { ...this.calibrationOffsets };
   }
 
+  getHeading(): Heading {
+    return { ...this.heading };
+  }
+
+  // Pitch and roll come from beta/gamma, which are derived from the gravity
+  // vector and are therefore already absolute: the world z-axis in device
+  // coordinates depends only on those two, not on alpha. Yaw is the sole
+  // relative channel, so substituting a compass heading for it makes the whole
+  // attitude absolute. A heading H (clockwise from north) corresponds to
+  // alpha = 360 - H, since alpha runs counter-clockwise.
+  getAbsoluteAngles(): Angles {
+    return { ...this.angles, yaw: this.effectiveYaw() };
+  }
+
+  private effectiveYaw(): number {
+    if (this.heading.source === 'relative') return this.angles.yaw;
+    return this.normalizeAngle(360 - this.heading.degrees);
+  }
+
   // Calculate surface normal vector from Euler angles
   calculateSurfaceNormal(angles: Angles): SurfaceNormal {
     // Convert degrees to radians
@@ -76,20 +110,25 @@ export class SensorService {
     const rollRad = (angles.roll * Math.PI) / 180;
     const yawRad = (angles.yaw * Math.PI) / 180;
 
-    // Calculate rotation matrix components
-    // Using ZYX Euler angle convention (yaw-pitch-roll)
-    const cp = Math.cos(pitchRad);
+    // DeviceOrientationEvent angles are intrinsic Z-X'-Y'' rotations
+    // (alpha about z, then beta about x', then gamma about y''), so the
+    // rotation is R = Rz(alpha) * Rx(beta) * Ry(gamma). This is NOT the
+    // aerospace ZYX yaw-pitch-roll order: using ZYX here swaps the roles of
+    // beta and gamma in the horizontal components and rotates the reported
+    // azimuth off the true tilt direction (z is unaffected, which is why the
+    // inclination angle was still correct).
+    const cp = Math.cos(pitchRad);   // beta
     const sp = Math.sin(pitchRad);
-    const cr = Math.cos(rollRad);
+    const cr = Math.cos(rollRad);    // gamma
     const sr = Math.sin(rollRad);
-    const cy = Math.cos(yawRad);
+    const cy = Math.cos(yawRad);     // alpha
     const sy = Math.sin(yawRad);
 
     // The normal vector is the Z-axis of the rotated coordinate system
     // For a leaf lying flat (pitch=0, roll=0), normal points up (0,0,1)
     const normal: SurfaceNormal = {
-      x: sp * cy + cp * sr * sy,
-      y: sp * sy - cp * sr * cy,
+      x: sr * cy + sp * cr * sy,
+      y: sr * sy - sp * cr * cy,
       z: cp * cr
     };
 
@@ -104,11 +143,11 @@ export class SensorService {
     return normal;
   }
 
-  // Calculate leaf zenith and azimuth from surface normal
+  // Calculate leaf inclination and azimuth from surface normal
   calculateLeafOrientation(normal: SurfaceNormal): LeafOrientation {
-    // Zenith angle: angle from vertical (z-axis)
+    // Inclination angle: angle from vertical (z-axis)
     // For leaves: 0° = horizontal (normal pointing up), 90° = vertical
-    const zenith = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
+    const inclination = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
 
     // Azimuth angle: compass direction of the normal projection on XY plane
     // 0° = North (+Y), 90° = East (+X), 180° = South (-Y), 270° = West (-X)
@@ -120,21 +159,32 @@ export class SensorService {
     }
 
     return {
-      zenith: Math.round(zenith * 100) / 100,  // Round to 2 decimal places
+      inclination: Math.round(inclination * 100) / 100,  // Round to 2 decimal places
       azimuth: Math.round(azimuth * 100) / 100
     };
   }
 
   // Combined method to get all orientation data
-  getOrientationData(): { angles: Angles; normal: SurfaceNormal; orientation: LeafOrientation } {
-    const angles = this.getAngles();
+  getOrientationData(): {
+    angles: Angles;
+    rawAngles: Angles;
+    normal: SurfaceNormal;
+    orientation: LeafOrientation;
+    heading: Heading;
+  } {
+    // Inclination needs only pitch/roll and is gravity-referenced either way; the
+    // azimuth is what depends on yaw, so the normal is built from the absolute
+    // angles rather than the raw alpha.
+    const angles = this.getAbsoluteAngles();
     const normal = this.calculateSurfaceNormal(angles);
     const orientation = this.calculateLeafOrientation(normal);
-    
+
     return {
       angles,
+      rawAngles: this.getAngles(),
       normal,
-      orientation
+      orientation,
+      heading: this.getHeading()
     };
   }
 
@@ -205,6 +255,7 @@ export class SensorService {
     
     // Start device orientation and motion listeners
     window.addEventListener('deviceorientation', this.handleDeviceOrientation);
+    window.addEventListener('deviceorientationabsolute' as any, this.handleAbsoluteOrientation);
     window.addEventListener('devicemotion', this.handleDeviceMotion);
     
     // Start GPS tracking
@@ -227,6 +278,7 @@ export class SensorService {
     if (!this.isListening) return;
     
     window.removeEventListener('deviceorientation', this.handleDeviceOrientation);
+    window.removeEventListener('deviceorientationabsolute' as any, this.handleAbsoluteOrientation);
     window.removeEventListener('devicemotion', this.handleDeviceMotion);
     
     // Stop GPS tracking
@@ -257,6 +309,20 @@ export class SensorService {
   }
 
   private handleDeviceOrientation(event: DeviceOrientationEvent): void {
+    // iOS puts a true-north compass heading on this same event. It only appears
+    // once orientation permission is granted and Location Services are on;
+    // without it the azimuth falls back to the arbitrary alpha reference.
+    const compass = (event as any).webkitCompassHeading;
+    if (typeof compass === 'number' && !Number.isNaN(compass)) {
+      const acc = (event as any).webkitCompassAccuracy;
+      this.heading = {
+        degrees: compass,
+        // iOS reports a negative accuracy when the compass is uncalibrated
+        accuracy: typeof acc === 'number' && acc >= 0 ? acc : null,
+        source: 'compass'
+      };
+    }
+
     if (event.beta !== null && event.gamma !== null && event.alpha !== null) {
       this.rawAngles = {
         pitch: event.beta,
@@ -265,6 +331,19 @@ export class SensorService {
       };
       this.updateAngles();
     }
+  }
+
+  // Android path: deviceorientationabsolute is referenced to north, so its alpha
+  // is usable directly. Ignored once iOS has supplied a compass heading.
+  private handleAbsoluteOrientation(rawEvent: Event): void {
+    const event = rawEvent as DeviceOrientationEvent;
+    if (this.heading.source === 'compass') return;
+    if (event.alpha === null || !event.absolute) return;
+    this.heading = {
+      degrees: ((360 - event.alpha) % 360 + 360) % 360,
+      accuracy: null,
+      source: 'absolute'
+    };
   }
 
   private handleGeolocation(position: GeolocationPosition): void {
