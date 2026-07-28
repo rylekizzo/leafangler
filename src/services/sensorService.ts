@@ -23,8 +23,14 @@ export interface SurfaceNormal {
 }
 
 export interface LeafOrientation {
-  inclination: number;  // Angle from vertical (0-90°, 0° = horizontal leaf)
-  azimuth: number; // Compass direction (0-360°, 0° = North)
+  // Angle of the ADAXIAL (upper) leaf surface from vertical, 0-180°.
+  //   0°   = leaf horizontal, top face straight up
+  //   90°  = leaf vertical
+  //   >90° = leaf drooped past vertical, top face pointing below the horizon
+  // The range runs past 90 on purpose: taking acos(|z|) would cap it there and
+  // make a leaf at 115° indistinguishable from one at 65°.
+  inclination: number;
+  azimuth: number; // Compass direction the top face points (0-360°, 0° = North)
 }
 
 export interface CalibrationOffsets {
@@ -260,25 +266,15 @@ export class SensorService {
     return normal;
   }
 
-  // Flip a downward-pointing normal to the upper hemisphere. A plane has two
-  // normals; this picks the up-facing one so that every reported angle refers
-  // to the same face of the leaf.
-  static upperHemisphere(normal: SurfaceNormal): SurfaceNormal {
-    if (normal.z >= 0) return { ...normal };
-    return { x: -normal.x, y: -normal.y, z: -normal.z };
-  }
-
   // Calculate leaf inclination and azimuth from surface normal
-  calculateLeafOrientation(rawNormal: SurfaceNormal): LeafOrientation {
-    // Inclination took Math.abs(z), which silently describes the up-facing
-    // side, while azimuth used the raw normal. For a device lying face-down
-    // the two then referred to opposite faces and the azimuth came out 180°
-    // reversed. Fold once, up front, so both angles agree.
-    const normal = SensorService.upperHemisphere(rawNormal);
-
-    // Inclination angle: angle from vertical (z-axis)
-    // For leaves: 0° = horizontal (normal pointing up), 90° = vertical
-    const inclination = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
+  calculateLeafOrientation(normal: SurfaceNormal): LeafOrientation {
+    // Both angles describe the ADAXIAL face. The device is placed screen-up on
+    // the upper surface of the leaf, so its z-axis is that face's normal by
+    // construction and is used as-is. Neither an abs() on z nor a flip to the
+    // upper hemisphere is correct here: a drooping leaf really does point its
+    // top face below the horizon, and folding would silently substitute the
+    // underside, reversing the azimuth by 180°.
+    const inclination = Math.acos(normal.z) * (180 / Math.PI);
 
     // Azimuth angle: compass direction of the normal projection on XY plane
     // 0° = North (+Y), 90° = East (+X), 180° = South (-Y), 270° = West (-X)
@@ -307,8 +303,8 @@ export class SensorService {
     // azimuth is what depends on yaw, so the normal is built from the absolute
     // angles rather than the raw alpha.
     const angles = this.getAbsoluteAngles();
-    // same convention as the angles below, so Normal_Z is never negative
-    const normal = SensorService.upperHemisphere(this.calculateSurfaceNormal(angles));
+    // adaxial normal, signed: Normal_Z goes negative for a drooping leaf
+    const normal = this.calculateSurfaceNormal(angles);
     const orientation = this.calculateLeafOrientation(normal);
 
     return {
